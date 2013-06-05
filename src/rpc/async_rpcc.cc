@@ -1,0 +1,81 @@
+#include "async_rpcc.hh"
+#include "async_tcpconn.hh"
+#include "rpc_common/compiler.hh"
+#include "rpc_common/sock_helper.hh"
+#include <iostream>
+#include <string.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <netinet/tcp.h>
+#include <google/protobuf/io/zero_copy_stream_impl.h>
+
+using std::cout;
+using std::endl;
+using namespace google::protobuf::io;
+
+
+namespace rpc {
+
+async_rpcc::async_rpcc(const char *host, int port, nn_loop *loop, rpc_handler* rh,
+		       proc_counters<app_param::nproc, true> *counts)
+    : async_rpcc(rpc::common::sock_helper::connect(host, port), loop, rh, counts) {
+}
+
+async_rpcc::async_rpcc(int fd, nn_loop *loop, rpc_handler* rh,
+		       proc_counters<app_param::nproc, true> *counts)
+    : c_(loop, fd, this, counts), rh_(rh), 
+      waiting_(new gcrequest_base *[1024]), waiting_capmask_(1023), 
+      seq_(random() / 2) {
+    bzero(waiting_, sizeof(gcrequest_base *) * 1024);
+}
+
+async_rpcc::~async_rpcc() {
+    mandatory_assert(!c_.noutstanding_);
+    delete[] waiting_;
+}
+
+void async_rpcc::buffered_read(async_tcpconn *, uint8_t *buf, uint32_t len) {
+    parser p;
+    while (p.parse<rpc_header>(buf, len, &c_)) {
+	rpc_header *rhdr = p.header<rpc_header>();
+        if (!rhdr->request_) {
+            // Find the rpc request with sequence number @reply_hdr_.seq
+	    gcrequest_base *q = waiting_[rhdr->seq_ & waiting_capmask_];
+	    if (!q || q->seq_ != rhdr->seq_)
+	        printf("RPC reply but no waiting call, seq=%d\n", rhdr->seq_);
+            assert(q && q->seq_ == rhdr->seq_);
+	    waiting_[rhdr->seq_ & waiting_capmask_] = 0;
+	    --c_.noutstanding_;
+	    q->process_reply(p, &c_);
+        } else {
+            ++c_.noutstanding_;
+            mandatory_assert(rh_);
+            rh_->handle_rpc(this, p);
+        }
+        p.reset();
+    }
+}
+
+void async_rpcc::handle_error(async_tcpconn *, int the_errno) {
+    if (c_.noutstanding_ != 0)
+	fprintf(stderr, "error: %d rpcs outstanding (%s)\n",
+		c_.noutstanding_, strerror(the_errno));
+    delete this;
+}
+
+void async_rpcc::expand_waiting() {
+    do {
+	unsigned ncapmask = waiting_capmask_ * 2 + 1;
+	gcrequest_base **nw = new gcrequest_base *[ncapmask + 1];
+	memset(nw, 0, sizeof(gcrequest_base *) * (ncapmask + 1));
+	for (unsigned i = 0; i <= waiting_capmask_; ++i)
+	    if (gcrequest_base *rr = waiting_[i])
+		nw[rr->seq_ & ncapmask] = rr;
+	delete[] waiting_;
+	waiting_ = nw;
+	waiting_capmask_ = ncapmask;
+    } while (waiting_[seq_ & waiting_capmask_]);
+}
+
+} // namespace rpc

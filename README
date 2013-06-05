@@ -1,0 +1,2 @@
+fastrpc is a single-threaded event-driven RPC library.  It was derived from the
+RPC library of gstore.
