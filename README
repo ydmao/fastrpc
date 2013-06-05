@@ -1,7 +1,8 @@
 fastrpc is a single-threaded event-driven RPC library.  It was derived from the
-RPC library of gstore.
+RPC library of gstore. fastrpc relies on protocol buffer for serialization,
+and libev for events.
 
-Follow the following steps to use fastrpc.
+Follow the following steps to use fastrpc for your repository ($(repo)).
 
 - mkdir $(repo)/proto
 
