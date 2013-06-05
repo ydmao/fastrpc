@@ -1,8 +1,8 @@
 #ifndef RPC_SERVER_HH
 #define RPC_SERVER_HH
 #include <ev++.h>
-#include "rpc/grequest.hh"
-#include "rpc/libev_loop.hh"
+#include "grequest.hh"
+#include "libev_loop.hh"
 #include "rpc_common/sock_helper.hh"
 
 namespace rpc {
