@@ -28,7 +28,7 @@ For example,
 
 namespace rpc {
 
-namespace appns = gstore;
+#define appns gstore;
 struct app_param {
     typedef appns::ErrorCode ErrorCode;
     typedef appns::ProcNumber ProcNumber;
