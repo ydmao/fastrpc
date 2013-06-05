@@ -4,3 +4,5 @@ config.log
 config.status
 config.h
 src/rpc_impl
+.deps
+obj
