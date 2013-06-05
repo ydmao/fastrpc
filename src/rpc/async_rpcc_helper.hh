@@ -3,6 +3,8 @@
 
 #include "rpc_common/compiler.hh"
 #include "libev_loop.hh"
+#include "async_rpcc.hh"
+#include "request_analyzer.hh"
 
 namespace rpc {
 
@@ -95,11 +97,11 @@ class make_binary_call_helper {
 
 #define APP_DECLARE_ONE_MAKE_CALL(proc, REQ, REPLY, SELF)			\
     template <void (SELF::*method)(appns::REPLY &)>				\
-    inline make_unary_call_helper<SELF, appns::REQ, appns::REPLY, method> make_call() { \
+    inline rpc::make_unary_call_helper<SELF, appns::REQ, appns::REPLY, method> make_call() { \
 	return rpc::make_unary_call_helper<SELF, appns::REQ, appns::REPLY, method>(this);	\
     }									\
     template <void (SELF::*method)(appns::REQ &, appns::REPLY &)>			\
-    inline make_binary_call_helper<SELF, appns::REQ, appns::REPLY, method> make_call() { \
+    inline rpc::make_binary_call_helper<SELF, appns::REQ, appns::REPLY, method> make_call() { \
 	return rpc::make_binary_call_helper<SELF, appns::REQ, appns::REPLY, method>(this);	\
     }
 #define APP_DECLARE_MAKE_CALL(SELF)					\
