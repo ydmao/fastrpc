@@ -2,7 +2,7 @@
 #define GREQUEST_HH 1
 #include "rpc_parser.hh"
 #include "async_rpcc.hh"
-#include "rpc_impl/request_analyzer.hh"
+#include "request_analyzer.hh"
 
 namespace rpc {
 struct grequest_base {

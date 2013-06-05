@@ -51,4 +51,6 @@ such as "./configure CXX='c++ -std=gnu++0x'"
 ========================================================])
 fi
 
+AC_DEFINE_UNQUOTED([HAVE_UNALIGNED_ACCESS], [1], [Define if unaligned accesses are OK.])
+
 AC_OUTPUT

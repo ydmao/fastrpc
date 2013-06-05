@@ -3,7 +3,7 @@
 #include "rpc_common/sock_helper.hh"
 #include "rpc_parser.hh"
 #include "proc_counters.hh"
-#include "rpc_impl/request_analyzer.hh"
+#include "request_analyzer.hh"
 #include <errno.h>
 #include <string.h>
 #include <ev++.h>

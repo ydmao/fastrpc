@@ -1,7 +1,7 @@
 #ifndef ASYNC_RPCC_HH_
 #define ASYNC_RPCC_HH_
 
-#include "rpc_impl/request_analyzer.hh"
+#include "request_analyzer.hh"
 #include "async_tcpconn.hh"
 #include "gcrequest.hh"
 #include "rpc_common/sock_helper.hh"
