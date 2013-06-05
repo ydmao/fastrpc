@@ -8,7 +8,7 @@ all: $(OBJDIR)/libfastrpc.so
 
 OBJECTS := $(wildcard $(SRCDIR)/rpc/*.cc) $(wildcard $(SRCDIR)/rpc_common/*.cc)
 OBJECTS := $(subst .cc,.o,$(notdir $(OBJECTS))) 
-OBJS := $(addprefix $(OBJDIR)/,$(OBJECTS))
+OBJECTS := $(addprefix $(OBJDIR)/,$(OBJECTS))
 
 $(OBJDIR)/%.o: $(SRCDIR)/rpc_common/%.cc config.h
 	mkdir -p $(DEPS) $(OBJDIR)
