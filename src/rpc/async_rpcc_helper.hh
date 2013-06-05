@@ -1,7 +1,50 @@
-#ifndef APP_RPCC_HELPER
-#define APP_RPCC_HELPER 1
+#ifndef ASYNC_RPCC_HELPER
+#define ASYNC_RPCC_HELPER 1
+
+#include "rpc_common/compiler.hh"
+#include "libev_loop.hh"
 
 namespace rpc {
+
+class async_batched_rpcc {
+  public:
+    async_batched_rpcc(async_rpcc* cl, int w)
+	: cl_(cl), loop_(nn_loop::get_tls_loop()), w_(w) {
+    }
+    bool drain() {
+        mandatory_assert(loop_->enter() == 1,
+                         "Don't call drain within a libev_loop!");
+        bool work_done = cl_->winsize();
+        while (cl_->winsize()) {
+            mandatory_assert(!cl_->error());
+            loop_->run_once();
+        }
+        loop_->leave();
+        return work_done;
+    }
+    int noutstanding() const {
+        return cl_->winsize();
+    }
+
+  protected:
+    void winctrl() {
+        if (w_ < 0)
+            return;
+        if (cl_->winsize() % (w_/2) == 0)
+            cl_->connection().flush();
+        if (loop_->enter() == 1) {
+            while (cl_->winsize() >= w_) {
+                mandatory_assert(!cl_->error());
+                loop_->run_once();
+            }
+        }
+        loop_->leave();
+    }
+
+    async_rpcc* cl_;
+    nn_loop *loop_;
+    int w_;
+};
 
 template <typename T>
 class make_reply_helper {

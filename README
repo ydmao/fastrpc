@@ -1,2 +1,91 @@
 fastrpc is a single-threaded event-driven RPC library.  It was derived from the
 RPC library of gstore.
+
+Follow the following steps to use fastrpc.
+
+- mkdir $(repo)/proto
+
+- ln -s $(repo)/proto $(repo)/fastrpc/src
+
+- Edit $(repo)/fastrpc_proto.hh to define RPCs. For example, suppose
+the application's protocol buffer file is gstore.proto, and the
+namespace of gstore.proto is gstore. Then fastrpc_proto.hh should
+define five things (all the definitions should lies in the rpc namespace).
+- include the header of the RPC serialization and deserialization.
+- define an alias (appns) to the namespace of containing the RPC messages.
+- define three parameters within struct app_param: the type of ErrorCode,
+  the type of rpc number, and the number of rpcs.
+- A RPC_FOR_EACH_CLIENT_MESSAGE macro that defines the RPCs from client;
+- A RPC_FOR_EACH_INTERCONNECT_MESSAGE macro that defines the RPCs from
+  a server peer.
+For example,
+
+<pre>
+#ifndef FASTRPC_PROTO_HH
+#define FASTRPC_PROTO_HH 1
+#include "gstore.pb.h"
+
+namespace rpc {
+
+namespace appns = gstore;
+struct app_param {
+    typedef appns::ErrorCode ErrorCode;
+    typedef appns::ProcNumber ProcNumber;
+    static constexpr uint32_t nproc = appns::ProcNumber::nproc;
+};
+
+#define RPC_FOR_EACH_CLIENT_MESSAGE(M, ...)			\
+    M(stats, StatsRequest, StatsReply, ## __VA_ARGS__)          \
+    M(get, GetRequest, GetReply, ## __VA_ARGS__)                \
+    M(put, PutRequest, PutReply, ## __VA_ARGS__)                \
+    M(scan, ScanRequest, ScanReply, ## __VA_ARGS__)             \
+    M(remove, RemoveRequest, RemoveReply, ## __VA_ARGS__)       \
+    M(control, ControlRequest, ControlReply, ## __VA_ARGS__)    \
+    M(xaction, TraxRequest, TraxReply, ##__VA_ARGS__)     \
+    
+#define RPC_FOR_EACH_INTERCONNECT_MESSAGE(M, ...)		\
+    M(xprepare, TraxPrepareRequest, TraxPrepareReply, ##__VA_ARGS__)          \
+    M(xcommit, TraxCommitRequest, TraxCommitReply, ##__VA_ARGS__)          \
+    M(xcommitcheck, TraxCommitCheckRequest, TraxCommitCheckReply, ##__VA_ARGS__)
+
+};
+
+#endif
+</pre>
+
+- Edit your Makefile to link with "fastrpc/obj/libfastrpc.so -lev -lprotobuf"
+
+- Write rpc server. Suppose the RPC server class is GstoreServer. Then
+it should implement a RPC handler for each RPC. The handler name should be
+the same as the proc name defined in fastrpc_proto.hh. For example, for the
+above fastrpc_proto.hh, the application should implement:
+
+<pre>
+void GstoreServer::stats(grequest<ProcNumber::stats>*, async_rpcc*, uint64_t now);
+void GstoreServer::get(grequest<ProcNumber::get>*, async_rpcc*, uint64_t now);
+void GstoreServer::put(grequest<ProcNumber::get>*, async_rpcc*, uint64_t now);
+...
+</pre>
+
+To run the rpc server, define an asynchronous rpc server object, and enter libev's
+event loop.
+<pre>
+GstoreServer* server = new GstoreServer;
+rpc::async_rpc_server<GstoreServer> rpcs(port, server);
+rpc::nn_loop *loop = rpc::nn_loop::get_tls_loop();
+loop->run();
+</pre>
+
+- Write rpc client. Define a subclass (say gstore_client) of
+  rpc::async_batched_rpcc, and implement a stub for each of the RPCs. For
+  example, the stub for get may looks like:
+
+<pre>
+template <typename F>
+void gstore_client::get(const std::string& key, F callback) {
+    auto *g = new gcrequest<ProcNumber::stats, F>(callback);
+    g->req_.set_key(key);
+    cl_->call(g);
+    winctrl();
+}
+</pre>
