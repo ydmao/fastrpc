@@ -6,99 +6,20 @@
 /* little endian */
 #undef ENDIAN_LITTLE
 
-/* Define to non-zero to enable gstore_server logging. */
-#undef GLOGGING
-
-/* Define to 1 if you have the `clock_gettime' function. */
-#undef HAVE_CLOCK_GETTIME
-
 /* Define if the C++ compiler understands 'auto'. */
 #undef HAVE_CXX_AUTO
 
 /* Define if the C++ compiler understands constexpr. */
 #undef HAVE_CXX_CONSTEXPR
 
-/* Define if the C++ compiler understands rvalue references. */
-#undef HAVE_CXX_RVALUE_REFERENCES
-
-/* Define if the C++ compiler understands static_assert. */
-#undef HAVE_CXX_STATIC_ASSERT
-
-/* Define if the C++ compiler understands template alias. */
-#undef HAVE_CXX_TEMPLATE_ALIAS
-
-/* Define if the C++ compiler understands user-defined literals. */
-#undef HAVE_CXX_USER_LITERALS
-
-/* Define to 1 if you have the declaration of `clock_gettime', and to 0 if you
-   don't. */
-#undef HAVE_DECL_CLOCK_GETTIME
-
-/* Define to 1 if you have the declaration of `getline', and to 0 if you
-   don't. */
-#undef HAVE_DECL_GETLINE
-
-/* Define to 1 if you have the declaration of `HeapProfilerStart', and to 0 if
-   you don't. */
-#undef HAVE_DECL_HEAPPROFILERSTART
-
-/* Define to 1 if you have the declaration of `ProfilerStart', and to 0 if you
-   don't. */
-#undef HAVE_DECL_PROFILERSTART
-
 /* Define to 1 if you have the <ev++.h> header file. */
 #undef HAVE_EV___H
-
-/* Define if you are using libflow for malloc. */
-#undef HAVE_FLOW_MALLOC
-
-/* Define to 1 if you have the <gperftools/heap-profiler.h> header file. */
-#undef HAVE_GPERFTOOLS_HEAP_PROFILER_H
-
-/* Define to 1 if you have the <gperftools/profiler.h> header file. */
-#undef HAVE_GPERFTOOLS_PROFILER_H
-
-/* Define if int64_t and long are the same type. */
-#undef HAVE_INT64_T_IS_LONG
-
-/* Define if int64_t and long long are the same type. */
-#undef HAVE_INT64_T_IS_LONG_LONG
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
-/* Define if you are using libjemalloc for malloc. */
-#undef HAVE_JEMALLOC
-
-/* Define if you have libnuma. */
-#undef HAVE_LIBNUMA
-
-/* Define to 1 if the system has the type `long long'. */
-#undef HAVE_LONG_LONG
-
 /* Define to 1 if you have the <memory.h> header file. */
 #undef HAVE_MEMORY_H
-
-/* Define to 1 if you have the <numa.h> header file. */
-#undef HAVE_NUMA_H
-
-/* Define if off_t and long are the same type. */
-#undef HAVE_OFF_T_IS_LONG
-
-/* Define if off_t and long long are the same type. */
-#undef HAVE_OFF_T_IS_LONG_LONG
-
-/* Define to enable pprof profiling. */
-#undef HAVE_PPROF
-
-/* Define if size_t and unsigned are the same type. */
-#undef HAVE_SIZE_T_IS_UNSIGNED
-
-/* Define if size_t and unsigned long are the same type. */
-#undef HAVE_SIZE_T_IS_UNSIGNED_LONG
-
-/* Define if size_t and unsigned long long are the same type. */
-#undef HAVE_SIZE_T_IS_UNSIGNED_LONG_LONG
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
@@ -112,95 +33,14 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
-/* Define if superpage support is enabled. */
-#undef HAVE_SUPERPAGE_ENABLED
-
-/* Define to 1 if you have the <sys/epoll.h> header file. */
-#undef HAVE_SYS_EPOLL_H
-
 /* Define to 1 if you have the <sys/stat.h> header file. */
 #undef HAVE_SYS_STAT_H
 
 /* Define to 1 if you have the <sys/types.h> header file. */
 #undef HAVE_SYS_TYPES_H
 
-/* Define if you are using libtcmalloc for malloc. */
-#undef HAVE_TCMALLOC
-
-/* Define to 1 if you have the <time.h> header file. */
-#undef HAVE_TIME_H
-
-/* Define if unaligned accesses are OK. */
-#undef HAVE_UNALIGNED_ACCESS
-
 /* Define to 1 if you have the <unistd.h> header file. */
 #undef HAVE_UNISTD_H
-
-/* Define if you have the __builtin_clz builtin. */
-#undef HAVE___BUILTIN_CLZ
-
-/* Define if you have the __builtin_clzl builtin. */
-#undef HAVE___BUILTIN_CLZL
-
-/* Define if you have the __builtin_clzll builtin. */
-#undef HAVE___BUILTIN_CLZLL
-
-/* Define if you have the __builtin_ctz builtin. */
-#undef HAVE___BUILTIN_CTZ
-
-/* Define if you have the __builtin_ctzl builtin. */
-#undef HAVE___BUILTIN_CTZL
-
-/* Define if you have the __builtin_ctzll builtin. */
-#undef HAVE___BUILTIN_CTZLL
-
-/* Define if you have the __sync_bool_compare_and_swap builtin. */
-#undef HAVE___SYNC_BOOL_COMPARE_AND_SWAP
-
-/* Define if you have the __sync_bool_compare_and_swap_8 builtin. */
-#undef HAVE___SYNC_BOOL_COMPARE_AND_SWAP_8
-
-/* Define if you have the __sync_fetch_and_add builtin. */
-#undef HAVE___SYNC_FETCH_AND_ADD
-
-/* Define if you have the __sync_fetch_and_add_8 builtin. */
-#undef HAVE___SYNC_FETCH_AND_ADD_8
-
-/* Define if you have the __sync_lock_release builtin. */
-#undef HAVE___SYNC_LOCK_RELEASE
-
-/* Define if you have the __sync_lock_test_and_set builtin. */
-#undef HAVE___SYNC_LOCK_TEST_AND_SET
-
-/* Define if you have the __sync_lock_test_and_set_val builtin. */
-#undef HAVE___SYNC_LOCK_TEST_AND_SET_VAL
-
-/* Define if you have the __sync_synchronize builtin. */
-#undef HAVE___SYNC_SYNCHRONIZE
-
-/* Define if you have the __sync_val_compare_and_swap builtin. */
-#undef HAVE___SYNC_VAL_COMPARE_AND_SWAP
-
-/* Define if you have the __sync_val_compare_and_swap_8 builtin. */
-#undef HAVE___SYNC_VAL_COMPARE_AND_SWAP_8
-
-/* Maximum key length */
-#undef KVDB_MAX_KEY_LEN
-
-/* Maximum row length */
-#undef KVDB_MAX_ROW_LEN
-
-/* Define if the default row type is kvdb_timed_array. */
-#undef KVDB_ROW_TYPE_ARRAY
-
-/* Define if the default row type is kvdb_timed_array_ver. */
-#undef KVDB_ROW_TYPE_ARRAY_VER
-
-/* Define if the default row type is kvdb_timed_bag. */
-#undef KVDB_ROW_TYPE_BAG
-
-/* Define if the default row type is kvdb_timed_str. */
-#undef KVDB_ROW_TYPE_STR
 
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
@@ -220,23 +60,8 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* The size of `int', as computed by sizeof. */
-#undef SIZEOF_INT
-
-/* The size of `long', as computed by sizeof. */
-#undef SIZEOF_LONG
-
-/* The size of `long long', as computed by sizeof. */
-#undef SIZEOF_LONG_LONG
-
-/* The size of `void *', as computed by sizeof. */
-#undef SIZEOF_VOID_P
-
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
-
-/* Define to enable server side timing. */
-#undef TIMING
 
 /* Define WORDS_BIGENDIAN to 1 if your processor stores words with the most
    significant byte first (like Motorola and SPARC, unlike Intel). */
