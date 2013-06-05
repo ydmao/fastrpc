@@ -76,7 +76,6 @@ struct grequest_maker {
         g->req_.Swap(req);
         return g;
     }
-
 };
 
 } // namespace rpc
