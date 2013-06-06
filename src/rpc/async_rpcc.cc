@@ -42,9 +42,7 @@ void async_rpcc::buffered_read(async_tcpconn *, uint8_t *buf, uint32_t len) {
         if (!rhdr->request_) {
             // Find the rpc request with sequence number @reply_hdr_.seq
 	    gcrequest_base *q = waiting_[rhdr->seq_ & waiting_capmask_];
-	    if (!q || q->seq_ != rhdr->seq_)
-	        printf("RPC reply but no waiting call, seq=%d\n", rhdr->seq_);
-            assert(q && q->seq_ == rhdr->seq_);
+            mandatory_assert(q && q->seq_ == rhdr->seq_ && "RPC reply but no waiting call");
 	    waiting_[rhdr->seq_ & waiting_capmask_] = 0;
 	    --c_.noutstanding_;
 	    q->process_reply(p, &c_);
