@@ -8,6 +8,29 @@
 
 namespace rpc {
 
+#define CALL_IF_HAS_HANDLER(__SERVICE, __PROC, REQ, REPLY) \
+template <bool> \
+struct call_if_has_##__PROC { \
+    template <typename... ARGS> \
+    static void call(ARGS...) { \
+        mandatory_assert(0 && "RPC " #__PROC " doesn't belong to service " #__SERVICE); \
+    } \
+}; \
+template <> \
+struct call_if_has_##__PROC<true> { \
+    static constexpr uint32_t PROC = app_param::ProcNumber::__PROC; \
+    template <typename RPCS> \
+    static void call(async_rpcc* c, parser& p, rpc_header* h, RPCS* rpcs) { \
+        grequest_remote<PROC> *q = new grequest_remote<PROC>(h->seq_, c); \
+        p.parse_message(q->req_); \
+        rpcs->get_opcount().add(PROC, count_recv_request, sizeof(*h) + h->len_, 0); \
+        rpcs->server()->__PROC(q, c, rpc::common::tstamp()); \
+    } \
+};
+
+RPC_FOR_EACH_CLIENT_MESSAGE(CALL_IF_HAS_HANDLER)
+RPC_FOR_EACH_INTERCONNECT_MESSAGE(CALL_IF_HAS_HANDLER)
+
 template <typename S, int SERVICE = 0>
 struct async_rpc_server : public rpc_handler {
     typedef async_rpc_server<S, SERVICE> self;
@@ -40,10 +63,11 @@ struct async_rpc_server : public rpc_handler {
         return opcount_;
     }
     void handle_rpc(async_rpcc *c, parser& p) {
-#define HANDLE_RPC(service, proc, REQ, REPLY) \
-    case app_param::ProcNumber::proc: \
-        handle_rpc(c, p, h, method_getter_##proc<service == SERVICE || SERVICE == 0, S>::get()); \
+#define HANDLE_RPC(__SERVICE, __PROC, REQ, REPLY) \
+    case app_param::ProcNumber::__PROC: \
+        call_if_has_##__PROC<__SERVICE == SERVICE || SERVICE == 0>::call(c, p, h, this); \
         break;
+
         rpc_header *h = p.header<rpc_header>();
         switch (h->proc_) {
         RPC_FOR_EACH_CLIENT_MESSAGE(HANDLE_RPC)
@@ -52,34 +76,11 @@ struct async_rpc_server : public rpc_handler {
             assert(0);
         }
     }
+    S* server() {
+        return s_;
+    }
 
   private:
-#define METHOD_GETTER(service, proc, REQ, REPLY) \
-    template <bool, typename T> \
-    struct method_getter_##proc { \
-        static constexpr void* get() { return 0; } \
-    }; \
-    template <typename T> \
-    struct method_getter_##proc<true, T> { \
-        typedef void (T::*method_type)(grequest<app_param::ProcNumber::proc>*, async_rpcc*, uint64_t); \
-        static constexpr method_type get() { return &T::proc; } \
-    };
-
-    RPC_FOR_EACH_CLIENT_MESSAGE(METHOD_GETTER)
-    RPC_FOR_EACH_INTERCONNECT_MESSAGE(METHOD_GETTER)
-
-    template <uint32_t PROC>
-    void handle_rpc(async_rpcc *c, parser &p, rpc_header *h,
-                    void (S::*f)(grequest<PROC> *q, async_rpcc* c, uint64_t now)) {
-        grequest_remote<PROC> *q = new grequest_remote<PROC>(h->seq_, c);
-        p.parse_message(q->req_);
-        opcount_.add(PROC, count_recv_request, sizeof(*h) + h->len_, 0);
-        (s_->*f)(q, c, rpc::common::tstamp());
-    }
-    void handle_rpc(async_rpcc *c, parser &p, rpc_header *h, void*) {
-        mandatory_assert(0 && "should never reach here");
-    }
-
     proc_counters<app_param::nproc, true> opcount_;
     int listener_;
     ev::io listener_ev_;
