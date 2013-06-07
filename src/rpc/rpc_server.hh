@@ -4,6 +4,7 @@
 #include "grequest.hh"
 #include "libev_loop.hh"
 #include "rpc_common/sock_helper.hh"
+#include "rpc_common/util.hh"
 
 namespace rpc {
 
@@ -59,7 +60,7 @@ struct async_rpc_server : public rpc_handler {
         grequest_remote<PROC> *q = new grequest_remote<PROC>(h->seq_, c);
         p.parse_message(q->req_);
         opcount_.add(PROC, count_recv_request, sizeof(*h) + h->len_, 0);
-        (s_->*f)(q, c, tstamp());
+        (s_->*f)(q, c, rpc::common::tstamp());
     }
 
     proc_counters<app_param::nproc, true> opcount_;
