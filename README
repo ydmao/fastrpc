@@ -11,11 +11,12 @@ Follow the following steps to use fastrpc for your repository ($(repo)).
 - Edit $(repo)/fastrpc_proto.hh to define RPCs. For example, suppose
 the application's protocol buffer file is gstore.proto, and the
 namespace of gstore.proto is gstore. Then fastrpc_proto.hh should
-define five things (all the definitions should lies in the rpc namespace).
+define the following things (all the definitions should lies in the rpc namespace).
 - include the header of the RPC serialization and deserialization.
 - define an alias (appns) to the namespace of containing the RPC messages.
 - define three parameters within struct app_param: the type of ErrorCode,
   the type of rpc number, and the number of rpcs.
+- enumerate the rpc services
 - A RPC_FOR_EACH_CLIENT_MESSAGE macro that defines the RPCs from client;
 - A RPC_FOR_EACH_INTERCONNECT_MESSAGE macro that defines the RPCs from
   a server peer.
@@ -35,19 +36,21 @@ struct app_param {
     static constexpr uint32_t nproc = appns::ProcNumber::nproc;
 };
 
+enum { SrvStorage = 1, SrvStat = 2};
+
 #define RPC_FOR_EACH_CLIENT_MESSAGE(M, ...)			\
-    M(stats, StatsRequest, StatsReply, ## __VA_ARGS__)          \
-    M(get, GetRequest, GetReply, ## __VA_ARGS__)                \
-    M(put, PutRequest, PutReply, ## __VA_ARGS__)                \
-    M(scan, ScanRequest, ScanReply, ## __VA_ARGS__)             \
-    M(remove, RemoveRequest, RemoveReply, ## __VA_ARGS__)       \
-    M(control, ControlRequest, ControlReply, ## __VA_ARGS__)    \
-    M(xaction, TraxRequest, TraxReply, ##__VA_ARGS__)     \
+    M(SrvStat, stats, StatsRequest, StatsReply, ## __VA_ARGS__)          \
+    M(SrvStorage, get, GetRequest, GetReply, ## __VA_ARGS__)                \
+    M(SrvStorage, put, PutRequest, PutReply, ## __VA_ARGS__)                \
+    M(SrvStorage, scan, ScanRequest, ScanReply, ## __VA_ARGS__)             \
+    M(SrvStorage, remove, RemoveRequest, RemoveReply, ## __VA_ARGS__)       \
+    M(SrvStorage, control, ControlRequest, ControlReply, ## __VA_ARGS__)    \
+    M(SrvStorage, xaction, TraxRequest, TraxReply, ##__VA_ARGS__)     \
     
 #define RPC_FOR_EACH_INTERCONNECT_MESSAGE(M, ...)		\
-    M(xprepare, TraxPrepareRequest, TraxPrepareReply, ##__VA_ARGS__)          \
-    M(xcommit, TraxCommitRequest, TraxCommitReply, ##__VA_ARGS__)          \
-    M(xcommitcheck, TraxCommitCheckRequest, TraxCommitCheckReply, ##__VA_ARGS__)
+    M(SrvStorage, xprepare, TraxPrepareRequest, TraxPrepareReply, ##__VA_ARGS__)          \
+    M(SrvStorage, xcommit, TraxCommitRequest, TraxCommitReply, ##__VA_ARGS__)          \
+    M(SrvStorage, xcommitcheck, TraxCommitCheckRequest, TraxCommitCheckReply, ##__VA_ARGS__)
 
 };
 
@@ -72,7 +75,7 @@ To run the rpc server, define an asynchronous rpc server object, and enter libev
 event loop.
 <pre>
 GstoreServer* server = new GstoreServer;
-rpc::async_rpc_server<GstoreServer> rpcs(port, server);
+rpc::async_rpc_server<GstoreServer, SrvStorage> rpcs(port, server);
 rpc::nn_loop *loop = rpc::nn_loop::get_tls_loop();
 loop->run();
 </pre>

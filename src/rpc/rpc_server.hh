@@ -8,9 +8,9 @@
 
 namespace rpc {
 
-template <typename S>
+template <typename S, int SERVICE = 0>
 struct async_rpc_server : public rpc_handler {
-    typedef async_rpc_server<S> self;
+    typedef async_rpc_server<S, SERVICE> self;
 
     async_rpc_server(int port, S* s) : s_(s) {
         listener_ = rpc::common::sock_helper::listen(port, 100);
@@ -39,11 +39,10 @@ struct async_rpc_server : public rpc_handler {
     proc_counters<app_param::nproc, true>& get_opcount() {
         return opcount_;
     }
-
     void handle_rpc(async_rpcc *c, parser& p) {
-#define HANDLE_RPC(proc, REQ, REPLY) \
+#define HANDLE_RPC(service, proc, REQ, REPLY) \
     case app_param::ProcNumber::proc: \
-        handle_rpc(c, p, h, &S::proc); \
+        handle_rpc(c, p, h, method_getter_##proc<service == SERVICE || SERVICE == 0, S>::get()); \
         break;
         rpc_header *h = p.header<rpc_header>();
         switch (h->proc_) {
@@ -53,7 +52,22 @@ struct async_rpc_server : public rpc_handler {
             assert(0);
         }
     }
+
   private:
+#define METHOD_GETTER(service, proc, REQ, REPLY) \
+    template <bool, typename T> \
+    struct method_getter_##proc { \
+        static constexpr void* get() { return 0; } \
+    }; \
+    template <typename T> \
+    struct method_getter_##proc<true, T> { \
+        typedef void (T::*method_type)(grequest<app_param::ProcNumber::proc>*, async_rpcc*, uint64_t); \
+        static constexpr method_type get() { return &T::proc; } \
+    };
+
+    RPC_FOR_EACH_CLIENT_MESSAGE(METHOD_GETTER)
+    RPC_FOR_EACH_INTERCONNECT_MESSAGE(METHOD_GETTER)
+
     template <uint32_t PROC>
     void handle_rpc(async_rpcc *c, parser &p, rpc_header *h,
                     void (S::*f)(grequest<PROC> *q, async_rpcc* c, uint64_t now)) {
@@ -61,6 +75,9 @@ struct async_rpc_server : public rpc_handler {
         p.parse_message(q->req_);
         opcount_.add(PROC, count_recv_request, sizeof(*h) + h->len_, 0);
         (s_->*f)(q, c, rpc::common::tstamp());
+    }
+    void handle_rpc(async_rpcc *c, parser &p, rpc_header *h, void*) {
+        mandatory_assert(0 && "should never reach here");
     }
 
     proc_counters<app_param::nproc, true> opcount_;

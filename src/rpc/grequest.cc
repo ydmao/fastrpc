@@ -2,7 +2,7 @@
 
 namespace rpc {
 
-#define RPC_EXECUTE(PROC, REQ, REPLY)			\
+#define RPC_EXECUTE(service, PROC, REQ, REPLY)			\
     case app_param::ProcNumber::PROC: {					\
 	grequest<app_param::ProcNumber::PROC> *self =			\
 	    static_cast<grequest<app_param::ProcNumber::PROC> *>(this);	\

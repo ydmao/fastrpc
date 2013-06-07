@@ -95,7 +95,7 @@ class make_binary_call_helper {
 
 } // namespace rpc
 
-#define APP_DECLARE_ONE_MAKE_CALL(proc, REQ, REPLY, SELF)			\
+#define APP_DECLARE_ONE_MAKE_CALL(service, proc, REQ, REPLY, SELF)			\
     template <void (SELF::*method)(appns::REPLY &)>				\
     inline rpc::make_unary_call_helper<SELF, appns::REQ, appns::REPLY, method> make_call() { \
 	return rpc::make_unary_call_helper<SELF, appns::REQ, appns::REPLY, method>(this);	\
