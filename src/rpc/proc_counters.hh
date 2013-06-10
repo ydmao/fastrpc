@@ -16,12 +16,6 @@ template <unsigned NPROC> struct proc_counters<NPROC, true> {
     inline proc_counters() {
 	bzero(c_, sizeof(c_));
     }
-    inline bool has(unsigned proc) const {
-	return proc < NPROC;
-    }
-    inline bool has_bytes(unsigned proc) const {
-	return proc < NPROC;
-    }
     inline void add(unsigned proc, proc_counter_type t, unsigned nbytes, unsigned ts) {
 	if (proc < NPROC) {
 	    c_[proc].count[t] += 1;
@@ -53,13 +47,6 @@ template <unsigned NPROC> struct proc_counters<NPROC, true> {
 template <unsigned NPROC> struct proc_counters<NPROC, false> {
     inline proc_counters() {
 	memset(c_, 0, sizeof(c_));
-    }
-    inline bool has(unsigned proc) const {
-	return proc < NPROC;
-    }
-    inline bool has_bytes(unsigned proc) const {
-        (void)proc;
-        return false;
     }
     inline void add(unsigned proc, proc_counter_type t, unsigned) {
 	if (proc < NPROC)
