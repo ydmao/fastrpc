@@ -1,10 +1,5 @@
 #ifndef RPC_COMPILER_HH
 #define RPC_COMPILER_HH 1
-#include <stdint.h>
-#include <utility>
-#include <inttypes.h>
-#include <arpa/inet.h>
-
 void print_stacktrace();
 
 /** @brief assert macro that always checks its argument, even if NDEBUG */
