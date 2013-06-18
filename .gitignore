@@ -6,3 +6,4 @@ config.h
 src/proto
 .deps
 obj
+*.swp
