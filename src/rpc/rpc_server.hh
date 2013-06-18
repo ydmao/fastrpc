@@ -35,7 +35,7 @@ template <typename S, int SERVICE = 0>
 struct async_rpc_server : public rpc_handler {
     typedef async_rpc_server<S, SERVICE> self;
 
-    async_rpc_server(int port, S* s) : s_(s) {
+    async_rpc_server(int port, S* s) : s_(s), listener_ev_(nn_loop::get_tls_loop()->ev_loop()) {
         listener_ = rpc::common::sock_helper::listen(port, 100);
         rpc::common::sock_helper::make_nodelay(listener_);
         listener_ev_.set<self, &self::accept_one>(this);
