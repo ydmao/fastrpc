@@ -30,7 +30,7 @@ struct grequest : public grequest_base {
     reply_type reply_;
 };
 
-template <uint32_t PROC>
+template <uint32_t PROC, bool NON_BLOCKING = false>
 struct grequest_remote : public grequest<PROC> {
     inline grequest_remote(uint32_t seq, async_rpcc* c) 
         : grequest<PROC>(), c_(c), seq_(seq) {
@@ -41,7 +41,8 @@ struct grequest_remote : public grequest<PROC> {
     using typename grequest<PROC>::execute;
     inline void execute() {
         c_->connection().write_reply(PROC, this->seq_, this->reply_);
-        delete this;
+        if (!NON_BLOCKING)
+            delete this;
     }
   private:
     async_rpcc* c_;
