@@ -23,7 +23,7 @@ struct call_if_has_##__PROC<true> { \
     static void call(async_rpcc* c, parser& p, rpc_header* h, RPCS* rpcs) { \
         grequest_remote<PROC> *q = new grequest_remote<PROC>(h->seq_, c); \
         p.parse_message(q->req_); \
-        rpcs->get_opcount().add(PROC, count_recv_request, sizeof(*h) + h->len_, 0); \
+        rpcs->get_opcount().add(PROC, count_recv_request, sizeof(*h) + h->len(), 0); \
         rpcs->server()->__PROC(q, c, rpc::common::tstamp()); \
     } \
 };

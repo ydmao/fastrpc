@@ -17,10 +17,19 @@ namespace rpc {
 
 // request and reply at RPC layer
 struct rpc_header {
-    uint32_t len_;
-    bool     request_;
+    uint32_t len() {
+        return len_ >> 1;
+    }
+    bool request() {
+        return len_ & 1;
+    }
+    void set_length(uint32_t len, bool request) {
+        len_ = (len << 1) | request;
+    }
     uint32_t seq_;
     uint32_t proc_; // used by request only
+  private:
+    uint32_t len_;
 };
 
 struct parser {
@@ -37,7 +46,7 @@ struct parser {
 
 	uint32_t need = sizeof(H);
 	if (need <= len)
-	    need += reinterpret_cast<H *>(buf)->len_;
+	    need += reinterpret_cast<H *>(buf)->len();
 	if (need > len) {
 	    c->advance(buf, need);
 	    return false;

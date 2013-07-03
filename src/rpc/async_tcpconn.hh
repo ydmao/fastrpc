@@ -119,8 +119,7 @@ inline void async_tcpconn::write_request(uint32_t proc, uint32_t seq, M &message
     uint32_t req_sz = message.ByteSize();
     uint8_t *x = reserve(sizeof(rpc_header) + req_sz);
     rpc_header *h = reinterpret_cast<rpc_header *>(x);
-    h->len_ = req_sz;
-    h->request_ = true;
+    h->set_length(req_sz, true);
     h->seq_ = seq;
     h->proc_ = proc;
     message.SerializeWithCachedSizesToArray(x + sizeof(*h));
@@ -137,8 +136,7 @@ inline void async_tcpconn::write_reply(uint32_t proc, uint32_t seq, M &message) 
     uint32_t reply_sz = message.ByteSize();
     uint8_t *x = reserve(sizeof(rpc_header) + reply_sz);
     rpc_header *h = reinterpret_cast<rpc_header *>(x);
-    h->len_ = reply_sz;
-    h->request_ = false;
+    h->set_length(reply_sz, false);
     h->seq_ = seq;
     message.SerializeWithCachedSizesToArray(x + sizeof(*h));
     if (counts_)
