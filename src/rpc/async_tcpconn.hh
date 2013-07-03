@@ -4,6 +4,7 @@
 #include "rpc_parser.hh"
 #include "proc_counters.hh"
 #include "request_analyzer.hh"
+#include "../../config.h"
 #include <errno.h>
 #include <string.h>
 #include <ev++.h>
