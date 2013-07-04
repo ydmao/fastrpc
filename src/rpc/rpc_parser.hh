@@ -39,7 +39,7 @@ struct parser {
     template <typename H, typename T>
     bool parse(uint8_t *&buf, uint32_t &len, T *c) {
 	assert(!reqbody_);
-	static_assert(HAVE_UNALIGNED_ACCESS, "requires unaligned access");
+        check_unaligned_access();
 
 	uint32_t need = sizeof(H);
 	if (need <= len)

@@ -113,7 +113,7 @@ inline uint8_t *async_tcpconn::reserve(uint32_t size) {
 
 template <typename M>
 inline void async_tcpconn::write_request(uint32_t proc, uint32_t seq, M &message) {
-    static_assert(HAVE_UNALIGNED_ACCESS, "uses unaligned access");
+    check_unaligned_access();
     mandatory_assert(!error());
     uint32_t req_sz = message.ByteSize();
     uint8_t *x = reserve(sizeof(rpc_header) + req_sz);
@@ -129,7 +129,7 @@ inline void async_tcpconn::write_request(uint32_t proc, uint32_t seq, M &message
 
 template <typename M>
 inline void async_tcpconn::write_reply(uint32_t proc, uint32_t seq, M &message) {
-    static_assert(HAVE_UNALIGNED_ACCESS, "uses unaligned access");
+    check_unaligned_access();
     --noutstanding_;
     mandatory_assert(!error());
     uint32_t reply_sz = message.ByteSize();
