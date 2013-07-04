@@ -2,8 +2,6 @@
 #define RPC_PARSER_HH
 
 #include "libev_loop.hh"
-#include <google/protobuf/message.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
 #include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 #include <ev++.h>
 #include <stack>
