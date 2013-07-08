@@ -5,6 +5,7 @@
 #include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 #include <ev++.h>
 #include <stack>
+#include <iostream>
 
 using namespace google::protobuf::io;
 using namespace google::protobuf;
@@ -65,10 +66,7 @@ struct parser {
 
     template <typename T>
     inline void parse_message(T &m) {
-        ArrayInputStream in(reqbody_, reqlen_);
-        m.ParseFromZeroCopyStream(&in);
-        // @in must be exhausted and m must be fully initialized
-        assert(m.IsInitialized() && in.ByteCount() == reqlen_);
+        m.ParseFromArray(reqbody_, reqlen_);
     }
 
   private:

@@ -3,7 +3,7 @@
 #include "rpc_common/sock_helper.hh"
 #include "rpc_parser.hh"
 #include "proc_counters.hh"
-#include "request_analyzer.hh"
+#include "proto/fastrpc_proto.hh"
 #include <errno.h>
 #include <string.h>
 #include <ev++.h>
@@ -121,7 +121,7 @@ inline void async_tcpconn::write_request(uint32_t proc, uint32_t seq, M &message
     h->set_length(req_sz, true);
     h->seq_ = seq;
     h->proc_ = proc;
-    message.SerializeWithCachedSizesToArray(x + sizeof(*h));
+    message.SerializeToArray(x + sizeof(*h), req_sz);
     ++noutstanding_;
     if (counts_)
 	counts_->add(proc, count_sent_request, sizeof(rpc_header) + req_sz, 0);
@@ -137,7 +137,7 @@ inline void async_tcpconn::write_reply(uint32_t proc, uint32_t seq, M &message) 
     rpc_header *h = reinterpret_cast<rpc_header *>(x);
     h->set_length(reply_sz, false);
     h->seq_ = seq;
-    message.SerializeWithCachedSizesToArray(x + sizeof(*h));
+    message.SerializeToArray(x + sizeof(*h), reply_sz);
     if (counts_)
 	counts_->add(proc, count_sent_reply, sizeof(rpc_header) + reply_sz, 0);
 }

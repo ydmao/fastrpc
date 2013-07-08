@@ -13,8 +13,8 @@ struct gcrequest_base {
 
 template <uint32_t PROC, typename F>
 struct gcrequest : public gcrequest_base, public F {
-    typedef typename analyze_grequest<PROC>::request_type request_type;
-    typedef typename analyze_grequest<PROC>::reply_type reply_type;
+    typedef typename analyze_grequest<PROC, false>::request_type request_type;
+    typedef typename analyze_grequest<PROC, false>::reply_type reply_type;
 
     gcrequest(F callback): F(callback), tstart_(rpc::common::tstamp()) {
     }
