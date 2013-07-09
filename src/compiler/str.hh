@@ -1,5 +1,5 @@
-#ifndef STR_HH
-#define STR_HH 1
+#ifndef REFCOMP_STR_HH
+#define REFCOMP_STR_HH 1
 
 namespace refcomp {
 
