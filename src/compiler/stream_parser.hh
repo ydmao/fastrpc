@@ -5,6 +5,7 @@
 #include <string.h>
 #include <assert.h>
 #include <iostream>
+#include <vector>
 #include "compiler/str.hh"
 
 namespace refcomp {
@@ -36,6 +37,14 @@ struct stream_parser {
         v.assign(reinterpret_cast<const char*>(s_), len);
         s_ = ns;
     }
+    template <typename T>
+    void parse(std::vector<T>& v) {
+        size_t len;
+        parse(len);
+        v.resize(len);
+        for (int i = 0; i < len; ++i)
+            parse(v[i]);
+    }
   private:
     const uint8_t* s_;
     const uint8_t* e_;
@@ -58,6 +67,13 @@ struct stream_unparser {
     static size_t bytecount(const str& v) {
         return sizeof(size_t) + v.length();
     }
+    template <typename T>
+    static size_t bytecount(const std::vector<T>& v) {
+        size_t size = sizeof(size_t);
+        for (size_t i = 0; i < v.size(); ++i)
+            size += bytecount(v[i]);
+        return size;
+    }
 
     template <typename T>
     void unparse(const T& v) {
@@ -77,6 +93,13 @@ struct stream_unparser {
         unparse(len);
         memcpy(s_, v.data(), len);
         s_ += len;
+    }
+    template <typename T>
+    void unparse(const std::vector<T>& v) {
+        const size_t len = v.size();
+        unparse(len);
+        for (int i = 0; i < v.size(); ++i)
+            unparse(v[i]);
     }
   private:
     uint8_t* s_;

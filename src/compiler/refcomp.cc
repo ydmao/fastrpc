@@ -3,6 +3,7 @@
 #include <map>
 #include <algorithm>
 #include <string>
+#include <vector>
 
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/compiler/code_generator.h>
@@ -117,10 +118,10 @@ void nbcg::generateXS(const gp::FileDescriptor* file) const {
             << "    template <bool NB, ProcNumber PROC>\n"
             << "    void report_failure() {\n"
             << "        if (NB){\n"
-            << "            std::cerr << \"Please override non-blocking version of \" << ProcNumber_name(PROC) << std::endl;\n"
+            << "            std::cerr << \"Please override non-blocking version of \" << ProcNumber_Name(PROC) << std::endl;\n"
             << "            assert(0);\n"
             << "        } else {\n"
-            << "            std::cerr << \"Please override blocking version of \" << ProcNumber_name(PROC) << std::endl;\n"
+            << "            std::cerr << \"Please override blocking version of \" << ProcNumber_Name(PROC) << std::endl;\n"
             << "            assert(0);\n"
             << "        }\n"
             << "    }\n";
@@ -189,6 +190,7 @@ bool nbcg::Generate(const gp::FileDescriptor* file, const std::string& parameter
         << "#include <inttypes.h>\n"
         << "#include <iostream>\n"
         << "#include <assert.h>\n"
+        << "#include <vector>\n"
         << "#include \"compiler/stream_parser.hh\"\n"
         << "\n";
 
@@ -256,7 +258,7 @@ void nbcg::generateProcNumber(const gp::FileDescriptor* file) const {
     xx_ << "    nproc = " << proc_.size() << ",\n";
     xx_ << "}; // enum \n";
 
-    xx_ << "inline const char* ProcNumber_name(ProcNumber n) {\n"
+    xx_ << "inline const char* ProcNumber_Name(ProcNumber n) {\n"
         << "    switch(n) {\n";
     for (auto p : proc_)
         xx_ << "    case ProcNumber::" << p.first << ":\n"
@@ -349,24 +351,54 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
     // Getter/Setter
     for (int i = 0; i < d->field_count(); ++i) {
         auto f = d->field(i);
-        xx_ << "    const " << refcomp_type_name(f, nb) << "& " << f->name() << "() const {\n"
-            << "        return " << f->name() << "_;\n"
-            << "    }\n";
+        if (!f->is_repeated()) {
+            xx_ << "    const " << refcomp_type_name(f, nb) << "& " << f->name() << "() const {\n"
+                << "        return " << f->name() << "_;\n"
+                << "    }\n";
 
-        xx_ << "    void set_" << f->name() << "(const " << refcomp_type_name(f, nb) << "& v) {\n"
-            << "        " << f->name() << "_ = v;\n"
-            << "    }\n";
+            xx_ << "    void set_" << f->name() << "(const " << refcomp_type_name(f, nb) << "& v) {\n"
+                << "        " << f->name() << "_ = v;\n"
+                << "    }\n";
 
-        xx_ << "    " << refcomp_type_name(f, nb) << "* mutable_" << f->name() << "() {\n"
-            << "        return &" << f->name() << "_;\n"
-            << "    }\n";
+            xx_ << "    " << refcomp_type_name(f, nb) << "* mutable_" << f->name() << "() {\n"
+                << "        return &" << f->name() << "_;\n"
+                << "    }\n";
+        } else {
+            xx_ << "    const " << refcomp_type_name(f, nb) << "& " << f->name() << "(int index) const {\n"
+                << "        return " << f->name() << "_[index];\n"
+                << "    }\n";
+
+            xx_ << "    size_t " << f->name() << "_size() const {\n"
+                << "        return " << f->name() << "_.size();\n"
+                << "    }\n";
+
+            xx_ << "    void set_" << f->name() << "(int index, const " << refcomp_type_name(f, nb) << "& v) {\n"
+                << "        " << f->name() << "_[index] = v;\n"
+                << "    }\n";
+
+            xx_ << "    " << refcomp_type_name(f, nb) << "* mutable_" << f->name() << "(int index) {\n"
+                << "        return &" << f->name() << "_[index];\n"
+                << "    }\n";
+
+            xx_ << "    " << refcomp_type_name(f, nb) << "* add_" << f->name() << "() {\n"
+                << "        " << f->name() << "_.resize(" << f->name() << "_" << ".size() + 1);\n"
+                << "        return &" << f->name() << "_.back();\n"
+                << "    }\n";
+
+            xx_ << "    void add_" << f->name() << "(const " << refcomp_type_name(f, nb) << "& v) {\n"
+                << "        " << f->name() << "_.push_back(v);\n"
+                << "    }\n";
+        }
     }
 
     // Storage
     xx_ << "  private:\n";
     for (int i = 0; i < d->field_count(); ++i) {
         auto f = d->field(i);
-        xx_ << "    " << refcomp_type_name(f, nb) << " " << f->name() << "_;\n";
+        if (!f->is_repeated())
+            xx_ << "    " << refcomp_type_name(f, nb) << " " << f->name() << "_;\n";
+        else
+            xx_ << "    std::vector<" << refcomp_type_name(f, nb) << "> " << f->name() << "_;\n";
     }
 
     xx_ << "};\n"

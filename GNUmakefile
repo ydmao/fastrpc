@@ -4,11 +4,11 @@ OBJDIR = ./obj
 SRCDIR = ./src
 CXXFLAGS = -fPIC -g -std=gnu++0x -I./src -include config.h -fno-omit-frame-pointer -O3
 
-all: $(OBJDIR)/libfastrpc.so $(OBJDIR)/protoc-gen-refcomp
-
 PROTO_HDR := src/proto/fastrpc_proto.hh \
              src/proto/fastrpc_proto_client.hh \
 	     src/proto/fastrpc_proto_server.hh
+
+all: $(PROTO_HDR) $(OBJDIR)/libfastrpc.so $(OBJDIR)/protoc-gen-refcomp
 
 OBJECTS := $(wildcard $(SRCDIR)/rpc/*.cc) $(wildcard $(SRCDIR)/rpc_common/*.cc)
 OBJECTS := $(subst .cc,.o,$(notdir $(OBJECTS))) 
