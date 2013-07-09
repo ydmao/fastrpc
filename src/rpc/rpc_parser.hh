@@ -2,14 +2,9 @@
 #define RPC_PARSER_HH
 
 #include "libev_loop.hh"
-#include <google/protobuf/io/zero_copy_stream_impl_lite.h>
 #include <ev++.h>
 #include <stack>
 #include <iostream>
-
-using namespace google::protobuf::io;
-using namespace google::protobuf;
-
 
 namespace rpc {
 
