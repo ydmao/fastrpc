@@ -5,7 +5,7 @@
 #include <string.h>
 #include <assert.h>
 #include <iostream>
-#include "str.hh"
+#include "compiler/str.hh"
 
 namespace refcomp {
 
