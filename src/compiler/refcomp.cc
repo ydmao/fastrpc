@@ -18,6 +18,46 @@ std::ofstream xc_;
 std::map<std::string, int> proc_;
 std::string dir_;
 
+void write_default_value(std::ofstream& x, const google::protobuf::FieldDescriptor* f, bool nb) {
+    switch (f->cpp_type()) {
+    case google::protobuf::FieldDescriptor::CPPTYPE_STRING: {
+            const std::string& v = f->default_value_string();
+            if (nb)
+                x << "refcomp::str(\"" << v << "\", " << v.length() << ")";
+            else
+                x << "std::string(\"" << v << "\")";
+        } break;
+    case google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE:
+        assert(0 && "Nested message is not supported yet");
+    case google::protobuf::FieldDescriptor::CPPTYPE_INT32:
+        x << f->default_value_int32();
+        break;
+    case google::protobuf::FieldDescriptor::CPPTYPE_INT64:
+        x << f->default_value_int64();
+        break;
+    case google::protobuf::FieldDescriptor::CPPTYPE_UINT32:
+        x << f->default_value_uint32();
+        break;
+    case google::protobuf::FieldDescriptor::CPPTYPE_UINT64:
+        x << f->default_value_uint64();
+        break;
+    case google::protobuf::FieldDescriptor::CPPTYPE_DOUBLE:
+        x << f->default_value_double();
+        break;
+    case google::protobuf::FieldDescriptor::CPPTYPE_FLOAT:
+        x << f->default_value_float();
+        break;
+    case google::protobuf::FieldDescriptor::CPPTYPE_BOOL:
+        x << f->default_value_bool();
+        break;
+    case google::protobuf::FieldDescriptor::CPPTYPE_ENUM:
+        x << f->default_value_enum()->type()->name() << "::" << f->default_value_enum()->name();
+        break;
+    default:
+        assert(0 && "Unknown type");
+    };
+}
+
 std::string refcomp_type_name(const google::protobuf::FieldDescriptor* f, bool nb) {
     switch (f->cpp_type()) {
     case google::protobuf::FieldDescriptor::CPPTYPE_STRING:
@@ -80,7 +120,7 @@ void nbcg::generateXC(const gp::FileDescriptor* file) const {
                 << ", method>((SELF*)this);\n"
                 << "    }\n";
 
-            xc_ << "    template <void (SELF::*method)(" << m->output_type()->name() << "&)>\n"
+            xc_ << "    template <void (SELF::*method)(" << m->input_type()->name() << "&, " << m->output_type()->name() << "&)>\n"
                 << "    inline rpc::make_binary_call_helper<SELF, " << m->input_type()->name() << ", " << m->output_type()->name() 
                 << ", method> make_call() {\n"
                 << "        return rpc::make_binary_call_helper<SELF, " << m->input_type()->name() << ", " << m->output_type()->name()
@@ -308,16 +348,9 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
         << "  public:\n";
     
     // constructor
-    xx_  << "    " << className << "()";
-    for (int i = 0; i < d->field_count(); ++i) {
-        auto f = d->field(i);
-        if (i == 0)
-            xx_ << " : ";
-        xx_ << f->name() << "_()";
-        if (i < d->field_count() - 1)
-            xx_ << ", ";
-    }
-    xx_ << "{} // constructor\n";
+    xx_ << "    " << className << "() {\n";
+    xx_ << "        Clear();\n"
+        << "    }\n";
 
     // SerializeToArray
     xx_ << "    bool SerializeToArray(uint8_t* s, size_t) {\n"
@@ -348,6 +381,20 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
     xx_ << "        return size;\n"
         << "    }\n";
 
+    // Clear
+    xx_ << "    void Clear() {\n";
+    for (int i = 0; i < d->field_count(); ++i) {
+        auto f = d->field(i);
+        if (f->is_repeated())
+            xx_ << "        " << f->name() << "_.clear();\n";
+        else {
+            xx_ << "        " << f->name() << "_ = ";
+            write_default_value(xx_, f, nb);
+            xx_ << ";\n";
+        }
+    }
+    xx_ << "    }\n";
+
     // Getter/Setter
     for (int i = 0; i < d->field_count(); ++i) {
         auto f = d->field(i);
@@ -364,6 +411,10 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
                 << "        return &" << f->name() << "_;\n"
                 << "    }\n";
         } else {
+            xx_ << "    const std::vector<" << refcomp_type_name(f, nb) << ">& " << f->name() << "() const {\n"
+                << "        return " << f->name() << "_;\n"
+                << "    }\n";
+
             xx_ << "    const " << refcomp_type_name(f, nb) << "& " << f->name() << "(int index) const {\n"
                 << "        return " << f->name() << "_[index];\n"
                 << "    }\n";
@@ -378,6 +429,10 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
 
             xx_ << "    " << refcomp_type_name(f, nb) << "* mutable_" << f->name() << "(int index) {\n"
                 << "        return &" << f->name() << "_[index];\n"
+                << "    }\n";
+
+            xx_ << "    std::vector<" << refcomp_type_name(f, nb) << ">* mutable_" << f->name() << "() {\n"
+                << "        return &" << f->name() << "_;\n"
                 << "    }\n";
 
             xx_ << "    " << refcomp_type_name(f, nb) << "* add_" << f->name() << "() {\n"

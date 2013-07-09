@@ -7,6 +7,9 @@ struct str {
     str(char* s, int len) {
         assign(s, len);
     }
+    str(const char* s, int len) {
+        assign(s, len);
+    }
     str() {
         assign(0, 0);
     }
