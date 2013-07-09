@@ -20,7 +20,7 @@ std::string dir_;
 std::string refcomp_type_name(const google::protobuf::FieldDescriptor* f, bool nb) {
     switch (f->cpp_type()) {
     case google::protobuf::FieldDescriptor::CPPTYPE_STRING:
-        return nb ? "str" : "std::string";
+        return nb ? "refcomp::str" : "std::string";
     case google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE:
         assert(0 && "Nested message is not supported yet");
     case google::protobuf::FieldDescriptor::CPPTYPE_INT32:
@@ -182,6 +182,7 @@ void nbcg::generateXS(const gp::FileDescriptor* file) const {
 bool nbcg::Generate(const gp::FileDescriptor* file, const std::string& parameter,
                     gpc::GeneratorContext*, std::string* error) const {
     dir_ = parameter;
+    std::cerr << "shit " << file->package() << "\n";
     xx_.open(dir_ + "/fastrpc_proto.hh");
     xx_ << "#ifndef REFCOMP_FASTRPC_HH\n"
         << "#define REFCOMP_FASTRPC_HH 1\n"
@@ -318,7 +319,7 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
 
     // SerializeToArray
     xx_ << "    bool SerializeToArray(uint8_t* s, size_t) {\n"
-        << "        stream_unparser su(s);\n";
+        << "        refcomp::stream_unparser su(s);\n";
     for (int i = 0; i < d->field_count(); ++i) {
         auto f = d->field(i);
         xx_ << "        su.unparse(" << f->name() << "_);\n";
@@ -328,7 +329,7 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
     
     // ParseFromArray
     xx_ << "    void ParseFromArray(const void* data, size_t size) {\n"
-        << "        stream_parser sp(data, size);\n";
+        << "        refcomp::stream_parser sp(data, size);\n";
     for (int i = 0; i < d->field_count(); ++i) {
         auto f = d->field(i);
         xx_ << "        sp.parse(" << f->name() << "_);\n";
@@ -340,7 +341,7 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
         << "        size_t size = 0;\n";
     for (int i = 0; i < d->field_count(); ++i) {
         auto f = d->field(i);
-        xx_ << "        size += stream_unparser::bytecount(" << f->name() << "_);\n";
+        xx_ << "        size += refcomp::stream_unparser::bytecount(" << f->name() << "_);\n";
     }
     xx_ << "        return size;\n"
         << "    }\n";

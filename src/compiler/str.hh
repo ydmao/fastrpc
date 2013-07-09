@@ -1,6 +1,8 @@
 #ifndef STR_HH
 #define STR_HH 1
 
+namespace refcomp {
+
 struct str {
     str(char* s, int len) {
         assign(s, len);
@@ -25,4 +27,5 @@ struct str {
     int len_;
 };
 
+};
 #endif

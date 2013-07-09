@@ -31,6 +31,7 @@ $(OBJDIR)/%.o: $(SRCDIR)/rpc/%.cc config.h $(PROTO_HDR)
 	g++ $(CXXFLAGS) -c $(DEPCFLAGS) $< -o $@
 
 $(PROTO_HDR): src/proto/$(PROTO) $(OBJDIR)/protoc-gen-refcomp
+	@if test -z $(PROTO) ; then echo "Must provide a PROTO file"; exit -1; fi
 	mkdir -p $(DEPS) $(OBJDIR)
 	protoc --plugin=$(OBJDIR)/protoc-gen-refcomp $< --refcomp_out=src/proto:.
 

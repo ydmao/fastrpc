@@ -7,6 +7,8 @@
 #include <iostream>
 #include "str.hh"
 
+namespace refcomp {
+
 struct stream_parser {
     stream_parser(const void* s, size_t size): s_(reinterpret_cast<const uint8_t*>(s)), e_(s_ + size) {
     }
@@ -26,7 +28,7 @@ struct stream_parser {
         v.assign(reinterpret_cast<const char*>(s_), len);
         s_ = ns;
     }
-    void parse(str& v) {
+    void parse(refcomp::str& v) {
         size_t len;
         parse(len);
         auto ns = s_ + len;
@@ -70,7 +72,7 @@ struct stream_unparser {
         memcpy(s_, v.data(), len);
         s_ += len;
     }
-    void unparse(const str& v) {
+    void unparse(const refcomp::str& v) {
         const size_t len = v.length();
         unparse(len);
         memcpy(s_, v.data(), len);
@@ -79,6 +81,8 @@ struct stream_unparser {
   private:
     uint8_t* s_;
     size_t len_;
+};
+
 };
 
 #endif
