@@ -4,7 +4,7 @@
 #include "rpc_common/compiler.hh"
 #include "libev_loop.hh"
 #include "async_rpcc.hh"
-#include "request_analyzer.hh"
+#include "proto/fastrpc_proto.hh"
 
 namespace rpc {
 
@@ -63,7 +63,7 @@ class make_reply_helper {
 };
 
 template <typename T> make_reply_helper<T> make_reply(T &x) {
-    x.set_eno(appns::UNKNOWN);
+    x.set_eno(app_param::ErrorCode::UNKNOWN);
     return make_reply_helper<T>(x);
 }
 
@@ -94,18 +94,5 @@ class make_binary_call_helper {
 };
 
 } // namespace rpc
-
-#define APP_DECLARE_ONE_MAKE_CALL(service, proc, REQ, REPLY, SELF)			\
-    template <void (SELF::*method)(appns::REPLY &)>				\
-    inline rpc::make_unary_call_helper<SELF, appns::REQ, appns::REPLY, method> make_call() { \
-	return rpc::make_unary_call_helper<SELF, appns::REQ, appns::REPLY, method>(this);	\
-    }									\
-    template <void (SELF::*method)(appns::REQ &, appns::REPLY &)>			\
-    inline rpc::make_binary_call_helper<SELF, appns::REQ, appns::REPLY, method> make_call() { \
-	return rpc::make_binary_call_helper<SELF, appns::REQ, appns::REPLY, method>(this);	\
-    }
-#define APP_DECLARE_MAKE_CALL(SELF)					\
-    RPC_FOR_EACH_CLIENT_MESSAGE(APP_DECLARE_ONE_MAKE_CALL, SELF) \
-    RPC_FOR_EACH_INTERCONNECT_MESSAGE(APP_DECLARE_ONE_MAKE_CALL, SELF)
 
 #endif

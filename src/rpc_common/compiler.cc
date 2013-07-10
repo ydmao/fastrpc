@@ -35,3 +35,7 @@ void fail_mandatory_assert(const char* file, int line, const char* assertion, co
     print_stacktrace();
     abort();
 }
+
+void check_unaligned_access() {
+    static_assert(HAVE_UNALIGNED_ACCESS, "uses unaligned access");
+}

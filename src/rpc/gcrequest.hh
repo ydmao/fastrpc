@@ -14,15 +14,15 @@ struct gcrequest_base {
 
 template <uint32_t PROC, typename F>
 struct gcrequest : public gcrequest_base, public F {
-    typedef typename analyze_grequest<PROC>::request_type request_type;
-    typedef typename analyze_grequest<PROC>::reply_type reply_type;
+    typedef typename analyze_grequest<PROC, false>::request_type request_type;
+    typedef typename analyze_grequest<PROC, false>::reply_type reply_type;
 
     gcrequest(F callback): F(callback), tstart_(rpc::common::tstamp()) {
     }
     void process_reply(parser& p, async_tcpconn *c) {
 	p.parse_message(reply_);
 	if (c->counts_)
-	    c->counts_->add(PROC, count_recv_reply, sizeof(rpc_header) + p.header<rpc_header>()->len_,
+	    c->counts_->add(PROC, count_recv_reply, sizeof(rpc_header) + p.header<rpc_header>()->len(),
                             rpc::common::tstamp() - tstart_);
 	(static_cast<F &>(*this))(req_, reply_);
         delete this;
