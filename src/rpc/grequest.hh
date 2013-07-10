@@ -70,5 +70,13 @@ struct grequest_local : public grequest<PROC, NB>, public F {
     }
 };
 
+template <uint32_t PROC>
+struct req_maker {
+    template <typename F>
+    static grequest_local<PROC, F>* make_local(const F& f) {
+        return new grequest_local<PROC, F>(f);
+    }
+};
+
 } // namespace rpc
 #endif
