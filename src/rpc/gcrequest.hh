@@ -28,7 +28,7 @@ struct gcrequest : public gcrequest_base, public F {
         delete this;
     }
     void process_connection_error(async_tcpconn* c) {
-        reply_.set_eno(appns::RPCERR);
+        reply_.set_eno(app_param::ErrorCode::RPCERR);
 	(static_cast<F &>(*this))(req_, reply_);
         delete this;
     }

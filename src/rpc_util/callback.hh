@@ -1,13 +1,13 @@
 #ifndef CALLBACK_HH
 #define CALLBACK_HH
 
-#include "fastrpc_proto.hh"
+#include "proto/fastrpc_proto.hh"
 
 namespace rpc {
 
 class check_eno {
   public:
-    check_eno() : expected_(appns::OK) {}
+    check_eno() : expected_(app_param::ErrorCode::OK) {}
     check_eno(int eno) : expected_(eno) {}
 
     template <typename T>
