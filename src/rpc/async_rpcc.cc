@@ -8,12 +8,9 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
-#include <google/protobuf/io/zero_copy_stream_impl.h>
 
 using std::cout;
 using std::endl;
-using namespace google::protobuf::io;
-
 
 namespace rpc {
 
