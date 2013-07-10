@@ -59,6 +59,12 @@ void async_rpcc::handle_error(async_tcpconn *, int the_errno) {
     if (c_.noutstanding_ != 0)
 	fprintf(stderr, "error: %d rpcs outstanding (%s)\n",
 		c_.noutstanding_, strerror(the_errno));
+    unsigned ncap = waiting_capmask_ + 1;
+    for (int i = 0; i < ncap; ++i) {
+        gcrequest_base* q = waiting_[i];
+        if (q)
+            q->process_connection_error(&c_);
+    }
     delete this;
 }
 
