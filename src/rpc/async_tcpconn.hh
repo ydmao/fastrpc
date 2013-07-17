@@ -58,6 +58,7 @@ struct async_tcpconn {
     int ev_flags_;
     int fd_;
     tcpconn_handler *ioh_;
+    int cid_;
   public:
     // XXX should be in a different abstraction
     proc_counters<app_param::nproc, true> *counts_;
@@ -121,6 +122,7 @@ inline void async_tcpconn::write_request(uint32_t proc, uint32_t seq, M &message
     h->set_length(req_sz, true);
     h->seq_ = seq;
     h->proc_ = proc;
+    h->cid_ = cid_;
     message.SerializeToArray(x + sizeof(*h), req_sz);
     ++noutstanding_;
     if (counts_)
@@ -137,6 +139,7 @@ inline void async_tcpconn::write_reply(uint32_t proc, uint32_t seq, M &message) 
     rpc_header *h = reinterpret_cast<rpc_header *>(x);
     h->set_length(reply_sz, false);
     h->seq_ = seq;
+    h->cid_ = cid_;
     message.SerializeToArray(x + sizeof(*h), reply_sz);
     if (counts_)
 	counts_->add(proc, count_sent_reply, sizeof(rpc_header) + reply_sz, 0);

@@ -21,6 +21,7 @@ struct rpc_header {
     }
     uint32_t seq_;
     uint32_t proc_; // used by request only
+    uint32_t cid_; // client id
   private:
     uint32_t len_;
 };
@@ -63,8 +64,6 @@ struct parser {
     inline void parse_message(T &m) {
         m.ParseFromArray(reqbody_, reqlen_);
     }
-
-  private:
     uint8_t *reqbody_;
     uint32_t reqlen_;
 };

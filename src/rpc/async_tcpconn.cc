@@ -27,6 +27,7 @@ async_tcpconn::async_tcpconn(nn_loop *loop, int fd, tcpconn_handler *ioh,
     refill_outbuf(1);
     ev_.set<async_tcpconn, &async_tcpconn::event_handler>(this);
     eselect(ev::READ);
+    cid_ = random() + getpid();
 }
 
 async_tcpconn::~async_tcpconn() {
