@@ -61,6 +61,7 @@ class sock_helper {
     }
     static void make_nodelay(int fd) {
         int yes = 1;
+        mandatory_assert(fd >= 0);
 	int r = setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &yes, sizeof(yes));
 	mandatory_assert(r == 0);
     }
