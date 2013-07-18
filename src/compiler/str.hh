@@ -26,6 +26,13 @@ struct str {
     const char* data() const {
         return s_;
     }
+    size_t size() const {
+        return len_;
+    }
+    const char* c_str() const {
+        assert(s_[len_] == 0);
+        return s_;
+    }
     char* s_;
     int len_;
 };
