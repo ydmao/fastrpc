@@ -9,6 +9,8 @@ namespace rpc {
 struct gcrequest_base {
     virtual void process_reply(parser& p, async_tcpconn* c) = 0;
     virtual void process_connection_error(async_tcpconn* c) = 0;
+    virtual ~gcrequest_base() {
+    }
     uint32_t seq_;
 };
 
