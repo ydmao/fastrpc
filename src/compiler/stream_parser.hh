@@ -22,7 +22,7 @@ struct stream_parser {
         s_ = ns;
     }
     void parse(std::string& v) {
-        size_t len;
+        int len;
         parse(len);
         auto ns = s_ + len;
         assert(ns <= e_);
@@ -30,7 +30,7 @@ struct stream_parser {
         s_ = ns;
     }
     void parse(refcomp::str& v) {
-        size_t len;
+        int len;
         parse(len);
         auto ns = s_ + len;
         assert(ns <= e_);
@@ -39,7 +39,7 @@ struct stream_parser {
     }
     template <typename T>
     void parse(std::vector<T>& v) {
-        size_t len;
+        int len;
         parse(len);
         v.resize(len);
         for (int i = 0; i < len; ++i)
@@ -62,14 +62,14 @@ struct stream_unparser {
         return sizeof(T);
     }
     static size_t bytecount(const std::string& v) {
-        return sizeof(size_t) + v.length();
+        return sizeof(int) + v.length();
     }
     static size_t bytecount(const str& v) {
-        return sizeof(size_t) + v.length();
+        return sizeof(int) + v.length();
     }
     template <typename T>
     static size_t bytecount(const std::vector<T>& v) {
-        size_t size = sizeof(size_t);
+        size_t size = sizeof(int);
         for (size_t i = 0; i < v.size(); ++i)
             size += bytecount(v[i]);
         return size;
@@ -83,20 +83,20 @@ struct stream_unparser {
         s_ += sizeof(T);
     }
     void unparse(const std::string& v) {
-        const size_t len = v.length();
+        const int len = v.length();
         unparse(len);
         memcpy(s_, v.data(), len);
         s_ += len;
     }
     void unparse(const refcomp::str& v) {
-        const size_t len = v.length();
+        const int len = v.length();
         unparse(len);
         memcpy(s_, v.data(), len);
         s_ += len;
     }
     template <typename T>
     void unparse(const std::vector<T>& v) {
-        const size_t len = v.size();
+        const int len = v.size();
         unparse(len);
         for (int i = 0; i < v.size(); ++i)
             unparse(v[i]);
