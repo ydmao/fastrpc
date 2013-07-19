@@ -13,6 +13,9 @@ struct str {
     str(const char* s, int len) {
         assign(s, len);
     }
+    str(const char* s) {
+        assign(s, strlen(s));
+    }
     str() {
         assign(0, 0);
     }
