@@ -6,6 +6,19 @@
 namespace rpc {
 
 template <typename T, typename M>
+inline bool send_reply(T* out, uint32_t cmd, uint32_t seq, uint32_t cid, const M& m) {
+    uint32_t bodysz = m.ByteSize();
+    rpc_header h;
+    h.set_length(bodysz, false);
+    h.seq_ = seq;
+    h.proc_ = cmd;
+    h.cid_ = cid;
+    out->write((const char*)&h, sizeof(h));
+    m.SerializeToStream(*out);
+    return true;
+}
+
+template <typename T, typename M>
 inline bool send_request(T* out, int32_t cmd, uint32_t seq, uint32_t cid, const M& m) {
     uint32_t bodysz = m.ByteSize();
     rpc_header h;
@@ -13,7 +26,7 @@ inline bool send_request(T* out, int32_t cmd, uint32_t seq, uint32_t cid, const 
     h.seq_ = seq;
     h.proc_ = cmd;
     h.cid_ = cid;
-    out->write((char*)&h, sizeof(h));
+    out->write((const char*)&h, sizeof(h));
     m.SerializeToStream(*out);
     return true;
 }
@@ -38,6 +51,5 @@ inline bool sync_call(OUT* out, IN* in, uint32_t cid,
     assert(h.seq_ == seq);
     return true;
 }
-
 
 }
