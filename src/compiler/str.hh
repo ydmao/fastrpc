@@ -1,5 +1,8 @@
-#ifndef REFCOMP_STR_HH
-#define REFCOMP_STR_HH 1
+#pragma once
+
+#include <string>
+#include <string.h>
+#include <assert.h>
 
 namespace refcomp {
 
@@ -16,6 +19,10 @@ struct str {
     str(const str& x) {
         assign(x.s_, x.len_);
     }
+    explicit str(const std::string& s) {
+        assign(s.data(), s.length());
+    }
+
     void assign(const char* s, int len) {
         s_ = const_cast<char*>(s);
         len_ = len;
@@ -33,9 +40,15 @@ struct str {
         assert(s_[len_] == 0);
         return s_;
     }
+    bool operator==(const str& x) {
+        return len_ == x.len_ && memcmp(s_, x.s_, len_) == 0;
+    }
+    bool operator!=(const str& x) {
+        return !((*this) == x);
+    }
+
     char* s_;
     int len_;
 };
 
 };
-#endif
