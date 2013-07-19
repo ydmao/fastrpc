@@ -10,52 +10,96 @@
 
 namespace refcomp {
 
-struct stream_parser {
-    stream_parser(const void* s, size_t size): s_(reinterpret_cast<const uint8_t*>(s)), e_(s_ + size) {
+struct simple_istream {
+    simple_istream(const void* s, size_t size): 
+        s_(reinterpret_cast<const uint8_t*>(s)), e_(s_ + size) {
     }
-    template <typename T>
-    void parse(T& v) {
-        static_assert(std::is_pod<T>::value, "T must be POD type");
-        const uint8_t* ns = s_ + sizeof(T);
-        assert(ns <= e_);
-        v = *reinterpret_cast<const T*>(s_);
-        s_ = ns;
+    bool read(char* b, size_t n) {
+        if (s_ + n > e_)
+            return false;
+        memcpy(b, s_, n);
+        s_ += n;
+        return true;
     }
-    void parse(std::string& v) {
-        int len;
-        parse(len);
-        auto ns = s_ + len;
-        assert(ns <= e_);
-        v.assign(reinterpret_cast<const char*>(s_), len);
-        s_ = ns;
-    }
-    void parse(refcomp::str& v) {
-        int len;
-        parse(len);
-        auto ns = s_ + len;
-        assert(ns <= e_);
-        v.assign(reinterpret_cast<const char*>(s_), len);
-        s_ = ns;
-    }
-    template <typename T>
-    void parse(std::vector<T>& v) {
-        int len;
-        parse(len);
-        v.resize(len);
-        for (int i = 0; i < len; ++i)
-            parse(v[i]);
+    bool skip(const char** d, int n) {
+        if (s_ + n > e_)
+            return false;
+        *d = (const char*)s_;
+        s_ += n;
+        return true;
     }
   private:
     const uint8_t* s_;
     const uint8_t* e_;
 };
 
+struct simple_ostream {
+    simple_ostream(void* s) : s_(reinterpret_cast<uint8_t*>(s)), len_(0) {
+    }
+    void write(const char* b, size_t n) {
+        memcpy(s_, b, n);
+        s_ += n;
+    }
+  private:
+    uint8_t* s_;
+    size_t len_;
+};
+
+template <typename T>
+bool read_inline(T& s, const char** d, int n);
+
+template <>
+inline bool read_inline<simple_istream>(simple_istream& s, const char** d, int n) {
+    return s.skip(d, n);
+}
+
+template <typename T>
+inline bool read_inline(T& s, const char** d, int n) {
+    assert(0 && "read_inline is only supported by simple_istream");
+}
+
+template <typename S>
+struct stream_parser {
+    stream_parser(S& s) : s_(s) {
+    }
+    S& s_;
+    template <typename T>
+    bool parse(T& v) {
+        static_assert(std::is_pod<T>::value, "T must be POD type");
+        return s_.read((char*)&v, sizeof(v));
+    }
+    bool parse(std::string& v) {
+        int len;
+        if (!parse(len))
+            return false;
+        v.resize(len);
+        return s_.read(&v[0], len);
+    }
+    bool parse(refcomp::str& v) {
+        int len;
+        if (!parse(len))
+            return false;
+        v.len_ = len;
+        return read_inline<S>(s_, (const char**)&v.s_, len);
+    }
+    template <typename T>
+    bool parse(std::vector<T>& v) {
+        int len;
+        if (!parse(len))
+            return false;
+        v.resize(len);
+        for (int i = 0; i < len; ++i)
+            if (!parse(v[i]))
+                return false;
+        return true;
+    }
+};
+
+template <typename S>
 struct stream_unparser {
-    stream_unparser(void* s) : s_(reinterpret_cast<uint8_t*>(s)), len_(0) {
+    stream_unparser(S& s): s_(s) {
     }
-    size_t length() const {
-        return len_;
-    }
+    S& s_;
     template <typename T>
     static size_t bytecount(const T& v) {
         static_assert(std::is_pod<T>::value, "T must be POD type");
@@ -78,21 +122,15 @@ struct stream_unparser {
     template <typename T>
     void unparse(const T& v) {
         static_assert(std::is_pod<T>::value, "T must be POD type");
-        *reinterpret_cast<T*>(s_) = v;
-        len_ += sizeof(T);
-        s_ += sizeof(T);
+        s_.write((const char*)&v, sizeof(v));
     }
     void unparse(const std::string& v) {
-        const int len = v.length();
-        unparse(len);
-        memcpy(s_, v.data(), len);
-        s_ += len;
+        unparse(refcomp::str(v.data(), v.length()));
     }
     void unparse(const refcomp::str& v) {
         const int len = v.length();
         unparse(len);
-        memcpy(s_, v.data(), len);
-        s_ += len;
+        s_.write(v.s_, v.len_);
     }
     template <typename T>
     void unparse(const std::vector<T>& v) {
@@ -101,9 +139,6 @@ struct stream_unparser {
         for (int i = 0; i < v.size(); ++i)
             unparse(v[i]);
     }
-  private:
-    uint8_t* s_;
-    size_t len_;
 };
 
 };

@@ -354,7 +354,15 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
 
     // SerializeToArray
     xx_ << "    bool SerializeToArray(uint8_t* s, size_t) {\n"
-        << "        refcomp::stream_unparser su(s);\n";
+        << "        refcomp::simple_ostream so(s);\n"
+        << "        return SerializeToStream(so);\n"
+        << "    }\n";
+
+    // SerializeToStream
+    xx_ << "    template <typename S>\n"
+        << "    bool SerializeToStream(S& s) {\n"
+        << "        refcomp::stream_unparser<S> su(s);\n";
+
     for (int i = 0; i < d->field_count(); ++i) {
         auto f = d->field(i);
         xx_ << "        su.unparse(" << f->name() << "_);\n";
@@ -363,12 +371,20 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
     xx_ << "    }\n";
     
     // ParseFromArray
-    xx_ << "    void ParseFromArray(const void* data, size_t size) {\n"
-        << "        refcomp::stream_parser sp(data, size);\n";
+    xx_ << "    bool ParseFromArray(const void* data, size_t size) {\n"
+        << "        refcomp::simple_istream si(data, size);\n"
+        << "        return ParseFromStream(si);"
+        << "    }\n";
+
+    // ParseFromStream
+     xx_ << "    template <typename S>\n"
+         << "    bool ParseFromStream(S& s) {\n"
+         << "        refcomp::stream_parser<S> sp(s);\n";
     for (int i = 0; i < d->field_count(); ++i) {
         auto f = d->field(i);
-        xx_ << "        sp.parse(" << f->name() << "_);\n";
+        xx_ << "        if (!sp.parse(" << f->name() << "_)) return false;\n";
     }
+    xx_ << "        return true;\n";
     xx_ << "    }\n";
 
     // ByteSize
@@ -376,7 +392,7 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
         << "        size_t size = 0;\n";
     for (int i = 0; i < d->field_count(); ++i) {
         auto f = d->field(i);
-        xx_ << "        size += refcomp::stream_unparser::bytecount(" << f->name() << "_);\n";
+        xx_ << "        size += refcomp::stream_unparser<refcomp::simple_ostream>::bytecount(" << f->name() << "_);\n";
     }
     xx_ << "        return size;\n"
         << "    }\n";
