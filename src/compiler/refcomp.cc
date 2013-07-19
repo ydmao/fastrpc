@@ -353,14 +353,14 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
         << "    }\n";
 
     // SerializeToArray
-    xx_ << "    bool SerializeToArray(uint8_t* s, size_t) {\n"
+    xx_ << "    bool SerializeToArray(uint8_t* s, size_t) const {\n"
         << "        refcomp::simple_ostream so(s);\n"
         << "        return SerializeToStream(so);\n"
         << "    }\n";
 
     // SerializeToStream
     xx_ << "    template <typename S>\n"
-        << "    bool SerializeToStream(S& s) {\n"
+        << "    bool SerializeToStream(S& s) const {\n"
         << "        refcomp::stream_unparser<S> su(s);\n";
 
     for (int i = 0; i < d->field_count(); ++i) {
@@ -388,7 +388,7 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
     xx_ << "    }\n";
 
     // ByteSize
-    xx_ << "    size_t ByteSize() {\n"
+    xx_ << "    size_t ByteSize() const {\n"
         << "        size_t size = 0;\n";
     for (int i = 0; i < d->field_count(); ++i) {
         auto f = d->field(i);
