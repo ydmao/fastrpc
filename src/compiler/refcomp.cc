@@ -28,7 +28,8 @@ void write_default_value(std::ofstream& x, const google::protobuf::FieldDescript
                 x << "std::string(\"" << v << "\")";
         } break;
     case google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE:
-        assert(0 && "Nested message is not supported yet");
+        assert(0 && "don't call me");
+        break;
     case google::protobuf::FieldDescriptor::CPPTYPE_INT32:
         x << f->default_value_int32();
         break;
@@ -63,7 +64,7 @@ std::string refcomp_type_name(const google::protobuf::FieldDescriptor* f, bool n
     case google::protobuf::FieldDescriptor::CPPTYPE_STRING:
         return nb ? "refcomp::str" : "std::string";
     case google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE:
-        assert(0 && "Nested message is not supported yet");
+        return f->message_type()->name();
     case google::protobuf::FieldDescriptor::CPPTYPE_INT32:
         return "int32_t";
     case google::protobuf::FieldDescriptor::CPPTYPE_INT64:
@@ -248,6 +249,10 @@ bool nbcg::Generate(const gp::FileDescriptor* file, const std::string& parameter
 
     generateProcNumber(file);
 
+    xx_ << "namespace " << file->package() << " {\n";
+    for (int i = 0; i < file->message_type_count(); ++i)
+        xx_ << "struct " << file->message_type(i)->name() << ";\n";
+    xx_ << "}\n";
     for (int i = 0; i < file->message_type_count(); ++i)
         generateMessage(file->message_type(i));
 
@@ -365,7 +370,10 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
 
     for (int i = 0; i < d->field_count(); ++i) {
         auto f = d->field(i);
-        xx_ << "        su.unparse(" << f->name() << "_);\n";
+        if (f->cpp_type() == google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE)
+            xx_ << "        " << f->name() << "_.SerializeToStream(s);\n";
+        else
+            xx_ << "        su.unparse(" << f->name() << "_);\n";
     }
     xx_ << "        return true;\n";
     xx_ << "    }\n";
@@ -373,7 +381,7 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
     // ParseFromArray
     xx_ << "    bool ParseFromArray(const void* data, size_t size) {\n"
         << "        refcomp::simple_istream si(data, size);\n"
-        << "        return ParseFromStream(si);"
+        << "        return ParseFromStream(si);\n"
         << "    }\n";
 
     // ParseFromStream
@@ -382,7 +390,10 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
          << "        refcomp::stream_parser<S> sp(s);\n";
     for (int i = 0; i < d->field_count(); ++i) {
         auto f = d->field(i);
-        xx_ << "        if (!sp.parse(" << f->name() << "_)) return false;\n";
+        if (f->cpp_type() == google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE)
+            xx_ << "        if (!" << f->name() << "_.ParseFromStream(s)) return false;\n";
+        else
+            xx_ << "        if (!sp.parse(" << f->name() << "_)) return false;\n";
     }
     xx_ << "        return true;\n";
     xx_ << "    }\n";
@@ -392,7 +403,10 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
         << "        size_t size = 0;\n";
     for (int i = 0; i < d->field_count(); ++i) {
         auto f = d->field(i);
-        xx_ << "        size += refcomp::stream_unparser<refcomp::simple_ostream>::bytecount(" << f->name() << "_);\n";
+        if (f->cpp_type() == google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE)
+            xx_ << "        size += " << f->name() << "_.ByteSize();\n";
+        else
+            xx_ << "        size += refcomp::stream_unparser<refcomp::simple_ostream>::bytecount(" << f->name() << "_);\n";
     }
     xx_ << "        return size;\n"
         << "    }\n";
@@ -403,10 +417,12 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
         auto f = d->field(i);
         if (f->is_repeated())
             xx_ << "        " << f->name() << "_.clear();\n";
-        else {
+        else if (f->cpp_type() != google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE) {
             xx_ << "        " << f->name() << "_ = ";
             write_default_value(xx_, f, nb);
             xx_ << ";\n";
+        } else {
+            xx_ << "        " << f->name() << "_.Clear();\n";
         }
     }
     xx_ << "    }\n";
