@@ -84,12 +84,16 @@ struct stream_parser {
     }
     template <typename T>
     bool parse(std::vector<T>& v) {
+        return parse(v, [&](T& t){ return this->parse(t); });
+    }
+    template <typename T, typename F>
+    bool parse(std::vector<T>& v, F f) {
         int len;
         if (!parse(len))
             return false;
         v.resize(len);
         for (int i = 0; i < len; ++i)
-            if (!parse(v[i]))
+            if (!f(v[i]))
                 return false;
         return true;
     }
@@ -113,11 +117,17 @@ struct stream_unparser {
     }
     template <typename T>
     static size_t bytecount(const std::vector<T>& v) {
+        return bytecount(v, [&](const T& t){return bytecount(t);});
+    }
+    template <typename T, typename F>
+    static size_t bytecount(const std::vector<T>& v, F f) {
         size_t size = sizeof(int);
         for (size_t i = 0; i < v.size(); ++i)
-            size += bytecount(v[i]);
+            size += f(v[i]);
         return size;
     }
+
+
 
     template <typename T>
     void unparse(const T& v) {
@@ -134,10 +144,15 @@ struct stream_unparser {
     }
     template <typename T>
     void unparse(const std::vector<T>& v) {
+        unparse(v, [&](const T& t) { this->unparse(t); });
+    }
+
+    template <typename T, typename F>
+    void unparse(const std::vector<T>& v, F f) {
         const int len = v.size();
         unparse(len);
-        for (int i = 0; i < v.size(); ++i)
-            unparse(v[i]);
+        for (int i = 0; i < int(v.size()); ++i)
+            f(v[i]);
     }
 };
 

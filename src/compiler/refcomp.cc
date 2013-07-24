@@ -370,9 +370,13 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
 
     for (int i = 0; i < d->field_count(); ++i) {
         auto f = d->field(i);
-        if (f->cpp_type() == google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE)
-            xx_ << "        " << f->name() << "_.SerializeToStream(s);\n";
-        else
+        if (f->cpp_type() == google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE) {
+            if (!f->is_repeated())
+                xx_ << "        " << f->name() << "_.SerializeToStream(s);\n";
+            else {
+                xx_ << "        su.unparse(" << f->name() << "_, [&](const " << f->message_type()->name() << "& t){t.SerializeToStream(s);});\n";
+            }
+        } else
             xx_ << "        su.unparse(" << f->name() << "_);\n";
     }
     xx_ << "        return true;\n";
@@ -390,9 +394,12 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
          << "        refcomp::stream_parser<S> sp(s);\n";
     for (int i = 0; i < d->field_count(); ++i) {
         auto f = d->field(i);
-        if (f->cpp_type() == google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE)
-            xx_ << "        if (!" << f->name() << "_.ParseFromStream(s)) return false;\n";
-        else
+        if (f->cpp_type() == google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE) {
+            if (!f->is_repeated())
+                xx_ << "        if (!" << f->name() << "_.ParseFromStream(s)) return false;\n";
+            else
+                xx_ << "        if (!sp.parse(" << f->name() << "_, [&](" << f->message_type()->name() << "& t){return t.ParseFromStream(s);})) return false;\n";
+        } else
             xx_ << "        if (!sp.parse(" << f->name() << "_)) return false;\n";
     }
     xx_ << "        return true;\n";
@@ -403,9 +410,13 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
         << "        size_t size = 0;\n";
     for (int i = 0; i < d->field_count(); ++i) {
         auto f = d->field(i);
-        if (f->cpp_type() == google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE)
-            xx_ << "        size += " << f->name() << "_.ByteSize();\n";
-        else
+        if (f->cpp_type() == google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE) {
+            if (!f->is_repeated())
+                xx_ << "        size += " << f->name() << "_.ByteSize();\n";
+            else
+                xx_ << "        size += refcomp::stream_unparser<refcomp::simple_ostream>::bytecount(" 
+                    << f->name() << "_, [&](const " << f->message_type()->name() << "& t){ return t.ByteSize();});\n";
+        } else
             xx_ << "        size += refcomp::stream_unparser<refcomp::simple_ostream>::bytecount(" << f->name() << "_);\n";
     }
     xx_ << "        return size;\n"
