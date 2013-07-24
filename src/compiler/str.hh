@@ -44,10 +44,29 @@ struct str {
         return s_;
     }
     bool operator==(const str& x) {
-        return len_ == x.len_ && memcmp(s_, x.s_, len_) == 0;
+        return compare(x) == 0;
     }
     bool operator!=(const str& x) {
-        return !((*this) == x);
+        return compare(x);
+    }
+    bool operator>(const str& x) {
+        return compare(x) > 0;
+    }
+    bool operator>=(const str& x) {
+        return compare(x) >= 0;
+    }
+    bool operator<(const str& x) {
+        return compare(x) < 0;
+    }
+    bool operator<=(const str& x) {
+        return compare(x) <= 0;
+    }
+    int compare(const str& x) {
+        int lencmp = len_ - x.len_;
+        int c = memcmp(s_, x.s_, lencmp > 0 ? x.len_ : len_);
+        if (c)
+            return c;
+        return lencmp;
     }
 
     char* s_;
