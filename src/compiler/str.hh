@@ -39,10 +39,6 @@ struct str {
     size_t size() const {
         return len_;
     }
-    const char* c_str() const {
-        assert(s_[len_] == 0);
-        return s_;
-    }
     bool operator==(const str& x) {
         return compare(x) == 0;
     }
