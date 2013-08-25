@@ -10,20 +10,21 @@ namespace rpc {
 
 // request and reply at RPC layer
 struct rpc_header {
-    uint32_t len() {
-        return len_ >> 1;
+    uint32_t payload_length() const {
+        return (len_ & 0x7fffffff) - sizeof(rpc_header);
     }
-    bool request() {
-        return len_ & 1;
+    bool request() const {
+        return len_ & 0x80000000;
     }
-    void set_length(uint32_t len, bool request) {
-        len_ = (len << 1) | request;
+    void set_payload_length(uint32_t payload_length, bool request) {
+        len_ = (request << 31) | (payload_length + sizeof(rpc_header));
     }
-    uint32_t seq_;
-    uint32_t proc_; // used by request only
-    uint32_t cid_; // client id
   private:
     uint32_t len_;
+  public:
+    uint32_t seq_;
+    uint32_t cid_; // client id
+    uint32_t proc_; // used by request only
 };
 
 struct parser {
@@ -40,7 +41,7 @@ struct parser {
 
 	uint32_t need = sizeof(H);
 	if (need <= len)
-	    need += reinterpret_cast<H *>(buf)->len();
+	    need += reinterpret_cast<H *>(buf)->payload_length();
 	if (need > len) {
 	    c->advance(buf, need);
 	    return false;

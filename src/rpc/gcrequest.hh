@@ -48,7 +48,8 @@ struct gcrequest : public gcrequest_base, public F {
     void process_reply(parser& p, async_tcpconn *c) {
 	p.parse_message(reply_);
 	if (c->counts_)
-	    c->counts_->add(PROC, count_recv_reply, sizeof(rpc_header) + p.header<rpc_header>()->len(),
+	    c->counts_->add(PROC, count_recv_reply,
+                            sizeof(rpc_header) + p.header<rpc_header>()->payload_length(),
                             rpc::common::tstamp() - tstart_);
 	(static_cast<F &>(*this))(req_, reply_);
         delete this;

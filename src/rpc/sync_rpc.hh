@@ -9,7 +9,7 @@ template <typename T, typename M>
 inline bool send_reply(T* out, uint32_t cmd, uint32_t seq, uint32_t cid, const M& m) {
     uint32_t bodysz = m.ByteSize();
     rpc_header h;
-    h.set_length(bodysz, false);
+    h.set_payload_length(bodysz, false);
     h.seq_ = seq;
     h.proc_ = cmd;
     h.cid_ = cid;
@@ -22,7 +22,7 @@ template <typename T, typename M>
 inline bool send_request(T* out, int32_t cmd, uint32_t seq, uint32_t cid, const M& m) {
     uint32_t bodysz = m.ByteSize();
     rpc_header h;
-    h.set_length(bodysz, true);
+    h.set_payload_length(bodysz, true);
     h.seq_ = seq;
     h.proc_ = cmd;
     h.cid_ = cid;
