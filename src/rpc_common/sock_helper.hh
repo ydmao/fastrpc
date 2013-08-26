@@ -74,6 +74,16 @@ class sock_helper {
         make_sockaddr(host, port, sin);
         return((uint64_t)(sin.sin_addr.s_addr) << 32) | port;
     }
+    static void peerinfo(int s, std::string& addr, int& port) {
+        sockaddr_in sin;
+        socklen_t len;
+        int r = getpeername(s, (sockaddr*)&sin, &len);
+        mandatory_assert(r == 0);
+        port = ntohs(sin.sin_port);
+        char buf[128];
+        mandatory_assert(inet_ntop(AF_INET, &sin.sin_addr, buf, sizeof(buf)));
+        addr.assign(buf, strlen(buf));
+    }
   private:
     static void make_sockaddr(const char *host, int port, struct sockaddr_in &sin) {
         bzero(&sin, sizeof(sin));
