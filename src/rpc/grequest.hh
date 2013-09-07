@@ -19,7 +19,8 @@ template <uint32_t PROC, bool NB = false>
 struct grequest : public grequest_base {
     typedef typename analyze_grequest<PROC, NB>::request_type request_type;
     typedef typename analyze_grequest<PROC, NB>::reply_type reply_type;
-
+    virtual ~grequest() {
+    }
     inline grequest() : grequest_base(PROC) {
     }
     using grequest_base::execute;
@@ -40,6 +41,8 @@ struct grequest_remote : public grequest<PROC, NB> {
     }
     inline uint32_t seq() const {
         return seq_;
+    }
+    virtual ~grequest_remote() {
     }
     using typename grequest<PROC, NB>::execute;
     inline void execute() {

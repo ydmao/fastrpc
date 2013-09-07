@@ -5,6 +5,12 @@
 
 namespace rpc {
 
+struct nop_cb {
+    template <typename REQ, typename REPLY>
+    void operator()(REQ&, REPLY&) {
+    }
+};
+
 class check_eno {
   public:
     check_eno() : expected_(app_param::ErrorCode::OK) {}

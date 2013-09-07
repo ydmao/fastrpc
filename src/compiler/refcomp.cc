@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <sstream>
 
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/compiler/code_generator.h>
@@ -15,8 +16,20 @@ namespace gpc = google::protobuf::compiler;
 std::ofstream xx_;
 std::ofstream xs_;
 std::ofstream xc_;
+std::ostringstream ap_;
 std::map<std::string, int> proc_;
 std::string dir_;
+
+bool has_string(const google::protobuf::Descriptor* m) {
+    for (int i = 0; i < m->field_count(); ++i) {
+        if (m->field(i)->cpp_type() == gp::FieldDescriptor::CPPTYPE_STRING)
+            return true;
+        if (m->field(i)->cpp_type() == gp::FieldDescriptor::CPPTYPE_MESSAGE &&
+            has_string(m->field(i)->message_type()))
+            return true;
+    }
+    return false;
+}
 
 void write_default_value(std::ofstream& x, const google::protobuf::FieldDescriptor* f, bool nb) {
     switch (f->cpp_type()) {
@@ -64,7 +77,7 @@ std::string refcomp_type_name(const google::protobuf::FieldDescriptor* f, bool n
     case google::protobuf::FieldDescriptor::CPPTYPE_STRING:
         return nb ? "refcomp::str" : "std::string";
     case google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE:
-        return f->message_type()->name();
+        return (nb ? "nb_" : "") + f->message_type()->name();
     case google::protobuf::FieldDescriptor::CPPTYPE_INT32:
         return "int32_t";
     case google::protobuf::FieldDescriptor::CPPTYPE_INT64:
@@ -257,7 +270,7 @@ bool nbcg::Generate(const gp::FileDescriptor* file, const std::string& parameter
         generateMessage(file->message_type(i));
 
     generateRequestAnalyzer(file);
-
+    xx_ << ap_.str();
     xx_ << "#endif\n";
 
     generateXC(file);
@@ -348,6 +361,12 @@ void nbcg::generateMessage(const gp::Descriptor* d) const {
 
 void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
     std::string className = (nb ? "nb_" : "") + d->name();
+    if (nb && !has_string(d)) {
+        xx_ << "namespace " << d->file()->package() << "{\n"
+            << "typedef " << d->name() << " " << className << ";\n"
+            << "}\n";
+        return;
+    }
     xx_ << "namespace " << d->file()->package() << "{\n"
         << "class " << className << "{\n"
         << "  public:\n";
@@ -374,7 +393,7 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
             if (!f->is_repeated())
                 xx_ << "        " << f->name() << "_.SerializeToStream(s);\n";
             else {
-                xx_ << "        su.unparse(" << f->name() << "_, [&](const " << f->message_type()->name() << "& t){t.SerializeToStream(s);});\n";
+                xx_ << "        su.unparse(" << f->name() << "_, [&](const " << refcomp_type_name(f, nb) << "& t){t.SerializeToStream(s);});\n";
             }
         } else
             xx_ << "        su.unparse(" << f->name() << "_);\n";
@@ -398,7 +417,7 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
             if (!f->is_repeated())
                 xx_ << "        if (!" << f->name() << "_.ParseFromStream(s)) return false;\n";
             else
-                xx_ << "        if (!sp.parse(" << f->name() << "_, [&](" << f->message_type()->name() << "& t){return t.ParseFromStream(s);})) return false;\n";
+                xx_ << "        if (!sp.parse(" << f->name() << "_, [&](" << refcomp_type_name(f, nb) << "& t){return t.ParseFromStream(s);})) return false;\n";
         } else
             xx_ << "        if (!sp.parse(" << f->name() << "_)) return false;\n";
     }
@@ -415,7 +434,7 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
                 xx_ << "        size += " << f->name() << "_.ByteSize();\n";
             else
                 xx_ << "        size += refcomp::stream_unparser<refcomp::simple_ostream>::bytecount(" 
-                    << f->name() << "_, [&](const " << f->message_type()->name() << "& t){ return t.ByteSize();});\n";
+                    << f->name() << "_, [&](const " << refcomp_type_name(f, nb) << "& t){ return t.ByteSize();});\n";
         } else
             xx_ << "        size += refcomp::stream_unparser<refcomp::simple_ostream>::bytecount(" << f->name() << "_);\n";
     }
@@ -437,6 +456,42 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
         }
     }
     xx_ << "    }\n";
+
+    // operator<
+    xx_ << "    bool operator<(const " << className << "& x) const;\n";
+
+    // assign_nb_toggled
+    xx_ << "    void assign_nb_toggled(const " << (nb ? "" : "nb_") << d->name() << "* x);\n";
+
+    ap_ << "namespace " << d->file()->package() << "{\n"
+        << "inline void " << className <<"::assign_nb_toggled(const " << (nb ? "" : "nb_") << d->name() << "* x) {\n"
+        << "    Clear();\n";
+    for (int i = 0; i < d->field_count(); ++i) {
+        auto f = d->field(i);
+        if (f->cpp_type() == gp::FieldDescriptor::CPPTYPE_MESSAGE) {
+            if (has_string(f->message_type())) {
+                if (f->is_repeated()) {
+                    ap_ << "    " << f->name() << "_.resize(x->" << f->name() << "_size());\n"
+                        << "    for (size_t i = 0; i < x->" << f->name() << "_size(); ++i)\n"
+                        << "        " << f->name() << "_[i].assign_nb_toggled(&x->"<< f->name()<< "(i));\n";
+                } else
+                    ap_ << "    " << f->name() << "_.assign_nb_toggled(&x->"<< f->name()<< "());\n";
+            } else
+                    ap_ << "    " << f->name() << "_ = x->"<< f->name()<< "();\n";
+        } else if (f->cpp_type() == gp::FieldDescriptor::CPPTYPE_STRING) {
+                if (f->is_repeated()) {
+                    ap_ << "    " << f->name() << "_.resize(x->" << f->name() << "_size());\n"
+                        << "    for (size_t i = 0; i < x->" << f->name() << "_size(); ++i)\n"
+                        << "        " << f->name() << "_[i].assign(x->"<< f->name()<< "(i).data(), x->" << f->name() << "(i).length());\n";
+                } else
+                    ap_ << "    " << f->name() << "_.assign(x->"<< f->name()<< "().data(), x->" << f->name() << "().length());\n";
+        } else {
+                ap_ << "    " << f->name() << "_ = x->"<< f->name()<< "();\n";
+        }
+    }
+    ap_ << "}\n"
+        << "}\n";
+        
 
     // Getter/Setter
     for (int i = 0; i < d->field_count(); ++i) {

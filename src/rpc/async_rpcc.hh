@@ -6,7 +6,6 @@
 #include "gcrequest.hh"
 #include "rpc_common/sock_helper.hh"
 #include "rpc_common/util.hh"
-#include <list>
 
 namespace rpc {
 

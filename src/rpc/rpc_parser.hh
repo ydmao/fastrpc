@@ -3,8 +3,6 @@
 
 #include "libev_loop.hh"
 #include <ev++.h>
-#include <stack>
-#include <iostream>
 
 namespace rpc {
 

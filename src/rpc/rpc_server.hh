@@ -43,7 +43,7 @@ struct async_rpc_server : public rpc_handler {
     void register_service(rpc_server_base* s) {
         auto pl = s->proclist();
         for (auto p : pl) {
-            if (p >= sp_.size())
+            if (p >= (int)sp_.size())
                 sp_.resize(p + 1);
             mandatory_assert(sp_[p] == NULL);
             sp_[p] = s;
