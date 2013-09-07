@@ -223,6 +223,28 @@ void nbcg::generateXS(const gp::FileDescriptor* file) const {
             << "        }\n"
             << "    }\n";
 
+        // dispatch_sync
+        xs_ << "    void dispatch_sync(rpc::rpc_header& h, std::string& b, fdstream* c, uint64_t now) {\n"
+            << "       switch (h.proc_) {\n";
+        for (int j = 0; j < s->method_count(); ++j) {
+            auto m = s->method(j);
+            xs_ << "        case ProcNumber::" << m->name() << ":\n"
+                << "            if (NB_" << up(m->name()) << ") {\n"
+                << "                rpc::grequest_sync<ProcNumber::" << m->name() << ", true> q(h.seq_, c);\n"
+                << "                q.req_.ParseFromArray(&b[0], h.payload_length());\n"
+                << "                " << m->name() << "(q, now);\n"
+                << "            } else {\n"
+                << "                auto q = new rpc::grequest_sync<ProcNumber::" << m->name() << ", false>(h.seq_, c);\n"
+                << "                q->req_.ParseFromArray(&b[0], h.payload_length());\n"
+                << "                " << m->name() << "(q, now);\n"
+                << "            }break;\n";
+        };
+        xs_ << "        default:\n"
+            << "            assert(0 && \"Unknown RPC\");\n"
+            << "        }\n"
+            << "    }\n";
+
+
         xs_ << "}; // " << s->name() << "Interface\n";
     }
     

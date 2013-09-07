@@ -1,6 +1,7 @@
 #ifndef GREQUEST_HH
 #define GREQUEST_HH 1
 #include "async_rpcc.hh"
+#include "sync_rpc.hh"
 
 namespace rpc {
 
@@ -72,6 +73,25 @@ struct grequest_local : public grequest<PROC, NB>, public F {
         return NULL;
     }
 };
+
+template <uint32_t PROC, bool NB = false>
+struct grequest_sync : public grequest<PROC, NB> {
+    inline grequest_sync(uint32_t seq, fdstream* s) : seq_(seq), s_(s) {
+    }
+    using typename grequest<PROC, NB>::execute;
+    inline void execute() {
+        rpc::send_reply(s_, PROC, seq_, 0, this->reply_);
+        if (!NB)
+            delete this;
+    }
+    async_rpcc* rpcc() {
+        return NULL;
+    }
+  private:
+    uint32_t seq_;
+    fdstream* s_;
+};
+
 
 template <uint32_t PROC>
 struct req_maker {

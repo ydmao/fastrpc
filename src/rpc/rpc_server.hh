@@ -5,6 +5,7 @@
 #include "libev_loop.hh"
 #include "rpc_common/sock_helper.hh"
 #include "rpc_common/util.hh"
+#include "rpc_common/fdstream.hh"
 #include "rpc/rpc_server_base.hh"
 
 namespace rpc {
@@ -63,6 +64,63 @@ struct async_rpc_server : public rpc_handler {
     int listener_;
     ev::io listener_ev_;
 };
+
+struct threaded_rpc_server {
+    threaded_rpc_server(int port) {
+        listener_ = rpc::common::sock_helper::listen(port, 100);
+        rpc::common::sock_helper::make_nodelay(listener_);
+    }
+
+    ~threaded_rpc_server() {
+        if (listener_ >= 0)
+	    close(listener_);
+    }
+
+    void serve() {
+        while (true) {
+            int s1 = accept(listener_, NULL, NULL);
+            rpc::common::sock_helper::make_nodelay(s1);
+            auto t = new std::thread([&]{ process_client(s1); });
+            t->detach();
+        }
+    }
+
+    proc_counters<app_param::nproc, true>& get_opcount() {
+        return opcount_;
+    }
+
+    void register_service(rpc_server_base* s) {
+        auto pl = s->proclist();
+        for (auto p : pl) {
+            if (p >= (int)sp_.size())
+                sp_.resize(p + 1);
+            mandatory_assert(sp_[p] == NULL);
+            sp_[p] = s;
+        }
+    }
+
+    void process_client(int fd) {
+        fdstream sm(fd);
+        rpc_header h;
+        std::string body;
+        while (true) {
+            if (!sm.read((char*)&h, sizeof(h)))
+                return;
+            body.resize(h.payload_length());
+            if (!sm.read(&body[0], h.payload_length()))
+                return;
+            auto s = sp_[h.proc_];
+            mandatory_assert(s);
+            s->dispatch_sync(h, body, &sm, rpc::common::tstamp());
+        }
+    }
+
+  private:
+    std::vector<rpc_server_base*> sp_; // service provider
+    proc_counters<app_param::nproc, true> opcount_;
+    int listener_;
+};
+
 
 }
 
