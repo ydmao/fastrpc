@@ -33,6 +33,7 @@ inline bool send_request(T* out, int32_t cmd, uint32_t seq, uint32_t cid, const 
 
 template <typename T, typename M>
 inline bool read_reply(T* in, M& m, rpc_header& h) {
+    static_assert(!M::NB, "Synchronous reply can't be non blocking");
     if (!in->read((char*)&h, sizeof(h)))
         return false;
     if (!m.ParseFromStream(*in))

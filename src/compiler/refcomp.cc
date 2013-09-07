@@ -537,7 +537,8 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
                 << "    }\n";
         }
     }
-
+    // nb
+    xx_ << "    static constexpr bool NB = " << (nb?"true":"false") << ";\n";
     // Storage
     xx_ << "  private:\n";
     for (int i = 0; i < d->field_count(); ++i) {
