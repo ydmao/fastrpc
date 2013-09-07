@@ -116,8 +116,7 @@ struct nbcg: public gpc::CodeGenerator {
 
 void nbcg::generateXC(const gp::FileDescriptor* file) const {
     xc_.open(dir_ + "/fastrpc_proto_client.hh");
-    xc_ << "#ifndef REFCOMP_FASTRPC_CLIENT_HH\n"
-        << "#define REFCOMP_FASTRPC_CLIENT_HH 1\n"
+    xc_ << "#pragma once\n"
         << "#include \"rpc/async_rpcc_helper.hh\"\n\n"
         << "namespace " << file->package() << "{\n\n"
         << "template <typename SELF>\n"
@@ -143,8 +142,7 @@ void nbcg::generateXC(const gp::FileDescriptor* file) const {
         }
     }
     xc_ << "};\n\n";
-    xc_ << "}; // namespace " << file->package() << "\n"
-        << "#endif\n";
+    xc_ << "}; // namespace " << file->package() << "\n";
 }
 
 std::string up(const std::string& s) {
@@ -155,8 +153,7 @@ std::string up(const std::string& s) {
 
 void nbcg::generateXS(const gp::FileDescriptor* file) const {
     xs_.open(dir_ + "/fastrpc_proto_server.hh");
-    xs_ << "#ifndef REFCOMP_FASTRPC_SERVER_HH\n"
-        << "#define REFCOMP_FASTRPC_SERVER_HH 1\n"
+    xs_ << "#pragma once\n"
         << "#include \"fastrpc_proto.hh\"\n"
         << "#include \"rpc/grequest.hh\"\n"
         << "#include \"rpc/rpc_server_base.hh\"\n\n"
@@ -230,8 +227,7 @@ void nbcg::generateXS(const gp::FileDescriptor* file) const {
     }
     
 
-    xs_ << "}; // namespace " << file->package() << "\n"
-        << "#endif\n";
+    xs_ << "}; // namespace " << file->package() << "\n";
 }
 
 bool nbcg::Generate(const gp::FileDescriptor* file, const std::string& parameter,
@@ -239,8 +235,7 @@ bool nbcg::Generate(const gp::FileDescriptor* file, const std::string& parameter
     dir_ = parameter;
     std::cerr << "shit " << file->package() << "\n";
     xx_.open(dir_ + "/fastrpc_proto.hh");
-    xx_ << "#ifndef REFCOMP_FASTRPC_HH\n"
-        << "#define REFCOMP_FASTRPC_HH 1\n"
+    xx_ << "#pragma once\n"
         << "#include <inttypes.h>\n"
         << "#include <iostream>\n"
         << "#include <assert.h>\n"
@@ -271,7 +266,6 @@ bool nbcg::Generate(const gp::FileDescriptor* file, const std::string& parameter
 
     generateRequestAnalyzer(file);
     xx_ << ap_.str();
-    xx_ << "#endif\n";
 
     generateXC(file);
     generateXS(file);
