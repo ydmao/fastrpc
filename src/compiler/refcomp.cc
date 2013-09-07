@@ -202,7 +202,7 @@ void nbcg::generateXS(const gp::FileDescriptor* file) const {
         }
         xs_ << "};\n";
 
-        xs_ << "        return std::vector<int>(pl, pl + " << proc_.size() << ");\n"
+        xs_ << "        return std::vector<int>(pl, pl + " << s->method_count() << ");\n"
             << "    }\n";
         // dispatch
         xs_ << "    void dispatch(rpc::parser& p, rpc::async_rpcc* c, uint64_t now) {\n"
