@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <set>
 
 #include <google/protobuf/descriptor.h>
 #include <google/protobuf/compiler/code_generator.h>
@@ -118,30 +119,74 @@ void nbcg::generateXC(const gp::FileDescriptor* file) const {
     xc_.open(dir_ + "/fastrpc_proto_client.hh");
     xc_ << "#pragma once\n"
         << "#include \"rpc/async_rpcc_helper.hh\"\n\n"
+        << "#include \"rpc/sync_rpc.hh\"\n\n"
         << "namespace " << file->package() << "{\n\n"
         << "template <typename SELF>\n"
         << "struct make_callable {\n";
 
+    typedef std::pair<std::string, std::string> callback_type;
+    std::set<callback_type> cb;
     for (int i = 0; i < file->service_count(); ++i) {
         auto s = file->service(i);
         for (int j = 0; j < s->method_count(); ++j) {
             auto m = s->method(j);
-            xc_ << "    template <void (SELF::*method)(" << m->output_type()->name() << "&)>\n"
-                << "    inline rpc::make_unary_call_helper<SELF, " << m->input_type()->name() << ", " << m->output_type()->name() 
-                << ", method> make_call() {\n"
-                << "        return rpc::make_unary_call_helper<SELF, " << m->input_type()->name() << ", " << m->output_type()->name()
-                << ", method>((SELF*)this);\n"
-                << "    }\n";
+            callback_type unary("", m->output_type()->name());
+            if (cb.find(unary) == cb.end()) {
+                xc_ << "    template <void (SELF::*method)(" << m->output_type()->name() << "&)>\n"
+                    << "    inline rpc::make_unary_call_helper<SELF, " << m->input_type()->name() << ", " << m->output_type()->name() 
+                    << ", method> make_call() {\n"
+                    << "        return rpc::make_unary_call_helper<SELF, " << m->input_type()->name() << ", " << m->output_type()->name()
+                    << ", method>((SELF*)this);\n"
+                    << "    }\n";
+                cb.insert(unary);
+            }
 
-            xc_ << "    template <void (SELF::*method)(" << m->input_type()->name() << "&, " << m->output_type()->name() << "&)>\n"
-                << "    inline rpc::make_binary_call_helper<SELF, " << m->input_type()->name() << ", " << m->output_type()->name() 
-                << ", method> make_call() {\n"
-                << "        return rpc::make_binary_call_helper<SELF, " << m->input_type()->name() << ", " << m->output_type()->name()
-                << ", method>((SELF*)this);\n"
-                << "    }\n";
+            callback_type binary(m->input_type()->name(), m->output_type()->name());
+            if (cb.find(binary) == cb.end()) {
+                xc_ << "    template <void (SELF::*method)(" << m->input_type()->name() << "&, " << m->output_type()->name() << "&)>\n"
+                    << "    inline rpc::make_binary_call_helper<SELF, " << m->input_type()->name() << ", " << m->output_type()->name() 
+                    << ", method> make_call() {\n"
+                    << "        return rpc::make_binary_call_helper<SELF, " << m->input_type()->name() << ", " << m->output_type()->name()
+                    << ", method>((SELF*)this);\n"
+                    << "    }\n";
+                cb.insert(binary);
+            }
         }
     }
     xc_ << "};\n\n";
+
+    for (int i = 0; i < file->service_count(); ++i) {
+        auto s = file->service(i);
+        xc_ << "template <typename BASE>\n"
+            << "struct " << s->name() << "Client : BASE {\n"
+            << "    explicit " << s->name() << "Client(const " << s->name() << "Client<BASE>&){assert(0 && \"disallowed\");}\n"
+            << "    " << s->name() << "Client(): seq_(0) {}\n";
+        for (int j = 0; j < s->method_count(); ++j) {
+            auto m = s->method(j);
+            xc_ << "    bool " << m->name() << "(const " << m->input_type()->name() << "& req, " << m->output_type()->name() << "& reply) {\n"
+                << "        if (!this->send_" << m->name() << "(req)) { this->disconnect(); return false; }\n"
+                << "        if (!this->recv_" << m->name() << "(reply)) { this->disconnect(); return false; }\n"
+                << "        return true;\n"
+                << "    }\n";
+            xc_ << "    bool send_" << m->name() << "(const " << m->input_type()->name() << "& req) {\n"
+                << "        if (!this->connect()) { return false; }\n"
+                << "        if (!rpc::send_request(this->out_, ProcNumber::" << m->name() << ", seq_++, 0, req)){ this->disconnect(); return false; }\n"
+                << "        this->out_->flush(); \n"
+                << "        return true;\n"
+                << "    }\n";
+            xc_ << "    bool recv_" << m->name() << "(" << m->output_type()->name() << "& reply) {\n"
+                << "        if (!this->connected()) { return false; }\n"
+                << "        rpc::rpc_header h;\n"
+                << "        if (!rpc::read_reply(this->in_, reply, h)) { this->disconnect(); reply.Clear(); return false; }\n"
+                << "        assert(h.seq_+1 == seq_);\n"
+                << "        return true;\n"
+                << "    }\n";
+        }
+        xc_ << "  private:\n"
+            << "    uint32_t seq_;\n"
+            << "};\n";
+    }
+
     xc_ << "}; // namespace " << file->package() << "\n";
 }
 
