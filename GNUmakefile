@@ -10,11 +10,15 @@ PROTO_HDR := src/proto/fastrpc_proto.hh \
 
 all: $(PROTO_HDR) $(OBJDIR)/libfastrpc.so $(OBJDIR)/protoc-gen-refcomp
 
-OBJECTS := $(wildcard $(SRCDIR)/rpc/*.cc) $(wildcard $(SRCDIR)/rpc_common/*.cc)
+OBJECTS := $(wildcard $(SRCDIR)/rpc/*.cc) $(wildcard $(SRCDIR)/rpc_common/*.cc) $(wildcard $(SRCDIR)/rpc_util/*.cc)
 OBJECTS := $(subst .cc,.o,$(notdir $(OBJECTS))) 
 OBJECTS := $(addprefix $(OBJDIR)/,$(OBJECTS))
 
 $(OBJDIR)/%.o: $(SRCDIR)/rpc_common/%.cc config.h $(PROTO_HDR)
+	mkdir -p $(DEPS) $(OBJDIR)
+	g++ $(CXXFLAGS) -c $(DEPCFLAGS) $< -o $@
+
+$(OBJDIR)/%.o: $(SRCDIR)/rpc_util/%.cc config.h
 	mkdir -p $(DEPS) $(OBJDIR)
 	g++ $(CXXFLAGS) -c $(DEPCFLAGS) $< -o $@
 
