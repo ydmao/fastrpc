@@ -15,13 +15,14 @@ using std::endl;
 namespace rpc {
 
 async_rpcc::async_rpcc(const char *host, int port, nn_loop *loop, rpc_handler* rh,
+                       int cid,
 		       proc_counters<app_param::nproc, true> *counts)
-    : async_rpcc(rpc::common::sock_helper::connect(host, port), loop, rh, counts) {
+    : async_rpcc(rpc::common::sock_helper::connect(host, port), loop, rh, cid, counts) {
 }
 
-async_rpcc::async_rpcc(int fd, nn_loop *loop, rpc_handler* rh,
+async_rpcc::async_rpcc(int fd, nn_loop *loop, rpc_handler* rh, int cid,
 		       proc_counters<app_param::nproc, true> *counts)
-    : c_(loop, fd, this, counts), rh_(rh), 
+    : c_(loop, fd, this, cid, counts), rh_(rh), 
       waiting_(new gcrequest_base *[1024]), waiting_capmask_(1023), 
       seq_(random() / 2) {
     bzero(waiting_, sizeof(gcrequest_base *) * 1024);

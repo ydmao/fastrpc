@@ -20,7 +20,7 @@ struct tcpconn_handler {
 };
 
 struct async_tcpconn {
-    async_tcpconn(nn_loop *loop, int fd, tcpconn_handler *ioh,
+    async_tcpconn(nn_loop *loop, int fd, tcpconn_handler *ioh, int cid,
                   proc_counters<app_param::nproc, true> *counts);
     ~async_tcpconn();
     bool error() const {
