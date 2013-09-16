@@ -42,6 +42,9 @@ struct async_tcpconn {
     int flush();
     
     void* caller_arg_;
+    void shutdown() {
+        ::shutdown(SHUT_RDWR, fd_);
+    }
 
   private:
     struct outbuf {
