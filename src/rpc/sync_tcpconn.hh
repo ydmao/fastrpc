@@ -52,6 +52,9 @@ struct sync_tcpconn {
             out_ = NULL;
         }
     }
+    int fd() {
+        return fd_;
+    }
   protected:
     std::string h_;
     int port_;

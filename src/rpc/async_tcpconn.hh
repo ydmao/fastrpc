@@ -40,6 +40,8 @@ struct async_tcpconn {
     inline void write_reply(uint32_t proc, uint32_t seq, M &message);
 
     int flush();
+    
+    void* caller_arg_;
 
   private:
     struct outbuf {
