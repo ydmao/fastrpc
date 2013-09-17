@@ -1,6 +1,7 @@
 #pragma once
 #include <string>
 #include <mutex>
+#include <sys/socket.h>
 #include "rpc_util/kvio.h"
 
 namespace rpc {
@@ -54,6 +55,15 @@ struct sync_tcpconn {
     }
     int fd() {
         return fd_;
+    }
+    void shutdown() {
+        ::shutdown(SHUT_RDWR, fd_);
+    }
+    kvin* in() {
+        return in_;
+    }
+    kvout* out() {
+        return out_;
     }
   protected:
     std::string h_;
