@@ -40,6 +40,10 @@ struct async_tcpconn {
     inline void write_reply(uint32_t proc, uint32_t seq, M &message);
 
     int flush();
+
+    void complete_onerror() {
+        --noutstanding_;
+    }
     
     void* caller_arg_;
     void shutdown() {

@@ -22,7 +22,7 @@ async_tcpconn::async_tcpconn(nn_loop *loop, int fd, tcpconn_handler *ioh, int ci
 			     proc_counters<app_param::nproc, true> *counts)
     : in_(make_outbuf(1)), out_writehead_(), out_bufhead_(), out_tail_(),
       ev_(nn_loop::get_loop(loop)->ev_loop()), ev_flags_(0), fd_(fd), cid_(cid), ioh_(ioh),
-      counts_(counts), noutstanding_(0) {
+      counts_(counts), noutstanding_(0), caller_arg_(0) {
     rpc::common::sock_helper::make_nodelay(fd_);
     rpc::common::sock_helper::make_nonblock(fd_);
     refill_outbuf(1);

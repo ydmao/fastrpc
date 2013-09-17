@@ -54,6 +54,7 @@ void async_rpcc::buffered_read(async_tcpconn *, uint8_t *buf, uint32_t len) {
 }
 
 void async_rpcc::handle_error(async_tcpconn *, int the_errno) {
+    rh_->handle_client_failure(this);
     if (c_.noutstanding_ != 0)
 	fprintf(stderr, "error: %d rpcs outstanding (%s)\n",
 		c_.noutstanding_, strerror(the_errno));

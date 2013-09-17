@@ -28,6 +28,7 @@ struct async_rpc_server : public rpc_handler {
     async_rpcc* register_rpcc(int fd) {
         async_rpcc *c = new async_rpcc(fd, nn_loop::get_loop(), this, random(), &opcount_);
         mandatory_assert(c);
+        clients_.push_back(c);
         return c;
     }
 
@@ -49,6 +50,7 @@ struct async_rpc_server : public rpc_handler {
             mandatory_assert(sp_[p] == NULL);
             sp_[p] = s;
         }
+        unique_.push_back(s);
     }
 
     void handle_rpc(async_rpcc *c, parser& p) {
@@ -58,7 +60,23 @@ struct async_rpc_server : public rpc_handler {
         s->dispatch(p, c, rpc::common::tstamp());
     }
 
+    void handle_client_failure(async_rpcc* c) {
+        for (auto s: unique_)
+            s->client_failure(c);
+        for (auto it = clients_.begin(); it != clients_.end(); ++it)
+            if (*it == c) {
+                clients_.erase(it);
+                return;
+            }
+        assert(0 && "connection not found? Impossible!");
+    }
+    std::list<async_rpcc*>& all_rpcc() {
+        return clients_;
+    }
+
   private:
+    std::list<async_rpcc*> clients_;
+    std::vector<rpc_server_base*> unique_; // service provider
     std::vector<rpc_server_base*> sp_; // service provider
     proc_counters<app_param::nproc, true> opcount_;
     int listener_;

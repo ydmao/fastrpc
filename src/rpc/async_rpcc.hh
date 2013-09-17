@@ -12,6 +12,7 @@ namespace rpc {
 struct async_rpcc;
 struct rpc_handler {
     virtual void handle_rpc(async_rpcc *c, parser& p) = 0;
+    virtual void handle_client_failure(async_rpcc *c) = 0;
 };
 
 class async_rpcc : public tcpconn_handler {
@@ -35,6 +36,14 @@ class async_rpcc : public tcpconn_handler {
     inline void call(gcrequest<PROC, CB> *q);
     void buffered_read(async_tcpconn *c, uint8_t *buf, uint32_t len);
     void handle_error(async_tcpconn *c, int the_errno);
+
+    template <typename R>
+    void execute(uint32_t proc, uint32_t seq, R& r) {
+        if (!error())
+            c_.write_reply(proc, seq, r);
+        else
+            c_.complete_onerror();
+    }
 
   private:
     async_tcpconn c_;
