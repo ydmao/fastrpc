@@ -92,9 +92,10 @@ int async_tcpconn::fill() {
     uint32_t old_tail = in_->tail;
     while (in_->tail != in_->capacity) {
 	ssize_t r = read(fd_, in_->buf + in_->tail, in_->capacity - in_->tail);
-	if (r != 0 && r != -1)
+	if (r != 0 && r != -1) {
 	    in_->tail += r;
-	else if (r == -1 && errno == EINTR)
+            break;
+        } else if (r == -1 && errno == EINTR)
 	    continue;
 	else if ((r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
 		 || (r == 0 && in_->tail != old_tail))

@@ -13,8 +13,8 @@ namespace rpc {
 struct async_rpc_server : public rpc_handler {
     typedef async_rpc_server self;
 
-    async_rpc_server(int port) : listener_ev_(nn_loop::get_tls_loop()->ev_loop()) {
-        listener_ = rpc::common::sock_helper::listen(port, 100);
+    async_rpc_server(int port, const std::string& h) : listener_ev_(nn_loop::get_tls_loop()->ev_loop()) {
+        listener_ = rpc::common::sock_helper::listen(h, port, 100);
         rpc::common::sock_helper::make_nodelay(listener_);
         listener_ev_.set<self, &self::accept_one>(this);
         listener_ev_.start(listener_, ev::READ);

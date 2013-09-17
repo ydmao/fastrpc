@@ -33,21 +33,22 @@ class sock_helper {
         }
         return fd;
     }
-    static int listen(int port, int backlog = 0) {
+    static int listen(const std::string& h, int port, int backlog = 0) {
 	int fd = socket(AF_INET, SOCK_STREAM, 0);
 	assert(fd >= 0);
 	int yes = 1;
 	int r = setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &yes, sizeof(yes));
 	mandatory_assert(r == 0);
 	struct sockaddr_in sin;
-	sin.sin_family = AF_INET;
-	sin.sin_addr.s_addr = INADDR_ANY;
-	sin.sin_port = htons(port);
+        make_sockaddr(h.c_str(), port, sin);
 	r = ::bind(fd, (struct sockaddr *) &sin, sizeof(sin));
 	mandatory_assert(r == 0);
 	r = ::listen(fd, backlog ? backlog : 100);
 	mandatory_assert(r == 0);
 	return fd;
+    }
+    static int listen(int port, int backlog = 0) {
+        return listen("0.0.0.0", port, backlog);
     }
     static int accept(int fd) {
 	struct sockaddr_in sin;
