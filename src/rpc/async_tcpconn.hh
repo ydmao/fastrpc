@@ -146,6 +146,7 @@ inline void async_tcpconn::write_reply(uint32_t proc, uint32_t seq, M &message) 
     uint32_t reply_sz = message.ByteSize();
     uint8_t *x = reserve(sizeof(rpc_header) + reply_sz);
     rpc_header *h = reinterpret_cast<rpc_header *>(x);
+    h->proc_ = proc; // not needed, by better to shut valgrind up
     h->set_payload_length(reply_sz, false);
     h->seq_ = seq;
     h->cid_ = cid_;
