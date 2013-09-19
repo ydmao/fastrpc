@@ -12,6 +12,7 @@ struct gcrequest_base {
     virtual ~gcrequest_base() {
     }
     uint32_t seq_;
+    static uint32_t last_latency_;
 };
 
 template <typename T>
@@ -45,6 +46,7 @@ struct gcrequest : public gcrequest_base, public F {
 
     gcrequest(F callback): F(callback), tstart_(rpc::common::tstamp()) {
     }
+    //@lat: latency in 100microseconds
     void process_reply(parser& p, async_tcpconn *c) {
 	p.parse_message(reply_);
 	if (c->counts_)

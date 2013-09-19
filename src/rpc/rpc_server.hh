@@ -55,7 +55,7 @@ struct async_rpc_server : public rpc_handler {
 
     void handle_rpc(async_rpcc *c, parser& p) {
         rpc_header *h = p.header<rpc_header>();
-        auto s = sp_[h->proc_];
+        auto s = sp_[h->proc()];
         mandatory_assert(s);
         s->dispatch(p, c, rpc::common::tstamp());
     }
@@ -127,7 +127,7 @@ struct threaded_rpc_server {
             body.resize(h.payload_length());
             if (!sm.read(&body[0], h.payload_length()))
                 return;
-            auto s = sp_[h.proc_];
+            auto s = sp_[h.proc()];
             mandatory_assert(s);
             s->dispatch_sync(h, body, &sm, rpc::common::tstamp());
         }

@@ -17,11 +17,29 @@ struct rpc_header {
     void set_payload_length(uint32_t payload_length, bool request) {
         len_ = (request << 31) | (payload_length + sizeof(rpc_header));
     }
+    static uint32_t make_mproc(uint32_t p, uint32_t latency) {
+	assert(p < 256 && latency <(1<<24));
+	return (p<<24) | latency;
+    }
+    void set_mproc(uint32_t p) {
+	proc_ = p;
+    }
+    //mproc: multiplexed proc
+    uint32_t mproc() const {
+	return proc_;
+    }
+    uint32_t proc() const {
+	return proc_ >> 24;
+    }
+    uint32_t latency() const {
+	return proc_ & 0xffffff;
+    }
   private:
     uint32_t len_;
   public:
     uint32_t seq_;
     uint32_t cid_; // client id
+  private:
     uint32_t proc_; // used by request only
 };
 

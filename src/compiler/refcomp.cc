@@ -249,7 +249,7 @@ void nbcg::generateXS(const gp::FileDescriptor* file) const {
         // dispatch
         xs_ << "    virtual void dispatch(rpc::parser& p, rpc::async_rpcc* c, uint64_t now) {\n"
             << "       rpc::rpc_header* h = p.header<rpc::rpc_header>();\n"
-            << "       switch (h->proc_) {\n";
+            << "       switch (h->proc()) {\n";
         for (int j = 0; j < s->method_count(); ++j) {
             auto m = s->method(j);
             xs_ << "        case ProcNumber::" << m->name() << ":\n"
@@ -270,7 +270,7 @@ void nbcg::generateXS(const gp::FileDescriptor* file) const {
 
         // dispatch_sync
         xs_ << "    void dispatch_sync(rpc::rpc_header& h, std::string& b, fdstream* c, uint64_t now) {\n"
-            << "       switch (h.proc_) {\n";
+            << "       switch (h.proc()) {\n";
         for (int j = 0; j < s->method_count(); ++j) {
             auto m = s->method(j);
             xs_ << "        case ProcNumber::" << m->name() << ":\n"
