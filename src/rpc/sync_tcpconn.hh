@@ -18,9 +18,11 @@ struct sync_tcpconn {
     ~sync_tcpconn() {
         disconnect();
     }
-    void init(const std::string& h, int port) {
+    void init(const std::string& h, int port, const std::string& localhost, int localport) {
         h_ = h;
         port_ = port;
+        localhost_ = localhost;
+	localport_ = localport;
     }
     void lock() {
         mu_.lock();
@@ -30,7 +32,7 @@ struct sync_tcpconn {
     }
     bool connect() {
         if (fd_ < 0) {
-            int fd = rpc::common::sock_helper::connect(h_.c_str(), port_);
+            int fd = rpc::common::sock_helper::connect(h_.c_str(), port_, localhost_.c_str(), localport_);
             if (fd < 0)
                 return false;
             rpc::common::sock_helper::make_nodelay(fd);
@@ -68,6 +70,8 @@ struct sync_tcpconn {
   protected:
     std::string h_;
     int port_;
+    std::string localhost_;
+    int localport_;
     int fd_;
     kvin* in_;
     kvout* out_;

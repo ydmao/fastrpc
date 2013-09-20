@@ -22,9 +22,14 @@ namespace common {
 
 class sock_helper {
   public:
-    static int connect(const char *host, int port) {
+    static int connect(const char *host, int port, const char* localhost = "0.0.0.0", int localport = 0) {
         int fd = socket(AF_INET, SOCK_STREAM, 0);
         assert(fd >= 0);
+	struct sockaddr_in localaddr;
+        make_sockaddr(localhost, localport, localaddr);
+	int r = ::bind(fd, (struct sockaddr *) &localaddr, sizeof(localaddr));
+	mandatory_assert(!r);
+
         struct sockaddr_in sin;
         make_sockaddr(host, port, sin);
         if (::connect(fd, (sockaddr *)&sin, sizeof(sin)) != 0) {
