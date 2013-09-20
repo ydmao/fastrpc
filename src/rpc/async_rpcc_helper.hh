@@ -32,7 +32,7 @@ class async_batched_rpcc {
     void winctrl() {
         if (w_ < 0)
             return;
-        if (cl_->winsize() % (w_/2) == 0)
+        if (w_ == 1 || cl_->winsize() % (w_/2) == 0)
             cl_->connection().flush();
         if (loop_->enter() == 1) {
             while (cl_->winsize() >= w_) {
