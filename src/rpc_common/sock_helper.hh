@@ -63,6 +63,8 @@ class sock_helper {
     static int accept(int fd, struct sockaddr_in &sin, socklen_t &sinlen) {
 	sinlen = sizeof(sin);
 	int rfd = ::accept(fd, (struct sockaddr *) &sin, &sinlen);
+	if (rfd < 0)
+	    perror("accept");
 	return rfd;
     }
     static void make_nodelay(int fd) {
