@@ -14,7 +14,7 @@ OBJECTS := $(wildcard $(SRCDIR)/rpc/*.cc) $(wildcard $(SRCDIR)/rpc_common/*.cc) 
 OBJECTS := $(subst .cc,.o,$(notdir $(OBJECTS))) 
 OBJECTS := $(addprefix $(OBJDIR)/,$(OBJECTS))
 
-CXX=g++-4.7
+CXX=g++
 
 $(OBJDIR)/%.o: $(SRCDIR)/rpc_common/%.cc config.h $(PROTO_HDR)
 	mkdir -p $(DEPS) $(OBJDIR)
