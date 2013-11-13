@@ -57,7 +57,7 @@ struct str {
     bool operator<=(const str& x) {
         return compare(x) <= 0;
     }
-    int compare(const str& x) {
+    int compare(const str& x) const {
         int lencmp = len_ - x.len_;
         int c = memcmp(s_, x.s_, lencmp > 0 ? x.len_ : len_);
         if (c)
