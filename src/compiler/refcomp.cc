@@ -562,8 +562,9 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
                 << "        return " << f->name() << "_;\n"
                 << "    }\n";
 
-            xx_ << "    void set_" << f->name() << "(const " << refcomp_type_name(f, nb) << "& v) {\n"
+            xx_ << "    " << className <<"& set_" << f->name() << "(const " << refcomp_type_name(f, nb) << "& v) {\n"
                 << "        " << f->name() << "_ = v;\n"
+	        << "        return *this;\n"
                 << "    }\n";
 
             xx_ << "    " << refcomp_type_name(f, nb) << "* mutable_" << f->name() << "() {\n"
@@ -582,8 +583,9 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
                 << "        return " << f->name() << "_.size();\n"
                 << "    }\n";
 
-            xx_ << "    void set_" << f->name() << "(int index, const " << refcomp_type_name(f, nb) << "& v) {\n"
+            xx_ << "    " << className << "& set_" << f->name() << "(int index, const " << refcomp_type_name(f, nb) << "& v) {\n"
                 << "        " << f->name() << "_[index] = v;\n"
+		<< "        return *this;\n"
                 << "    }\n";
 
             xx_ << "    " << refcomp_type_name(f, nb) << "* mutable_" << f->name() << "(int index) {\n"
