@@ -205,6 +205,22 @@ void nbcg::generateXS(const gp::FileDescriptor* file) const {
         << "namespace " << file->package() << "{\n\n";
     for (int i = 0; i < file->service_count(); ++i) {
         auto s = file->service(i);
+        // templated_proc
+        xs_ << "template <typename F>\n"
+            << "inline bool " << s->name() << "_templated_call(ProcNumber proc, F& f) {\n"
+            << "   switch (proc) {\n";
+        for (int j = 0; j < s->method_count(); ++j) {
+            auto m = s->method(j);
+            xs_ << "    case ProcNumber::" << m->name() << ":{\n"
+	        << "        f.template operator()<ProcNumber::" << m->name() << ">();\n"
+                << "        break;}\n";
+        };
+        xs_ << "        default:\n"
+            << "            return false;\n"
+            << "    }\n"
+            << "    return true;\n;"
+            << "}\n\n";
+
         xs_ << "template <bool NB_DEFAULT = false";
         for (int j = 0; j < s->method_count(); ++j)
             xs_ << ", bool NB_" << up(s->method(j)->name()) << " = NB_DEFAULT";
@@ -289,8 +305,8 @@ void nbcg::generateXS(const gp::FileDescriptor* file) const {
             << "        }\n"
             << "    }\n";
 
-
         xs_ << "}; // " << s->name() << "Interface\n";
+
     }
     
 
