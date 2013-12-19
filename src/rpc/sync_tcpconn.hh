@@ -9,15 +9,14 @@ namespace rpc {
 struct sync_tcpconn {
     sync_tcpconn() : h_(""), port_(0), fd_(-1), in_(NULL), out_(NULL) {
     }
-    explicit sync_tcpconn(sync_tcpconn& ) {
-        assert(0); // disallow copying of mu_
-    }
     sync_tcpconn(const std::string& h, int port) 
         : h_(h), port_(port), fd_(-1), in_(NULL), out_(NULL) {
     }
     ~sync_tcpconn() {
         disconnect();
     }
+    explicit sync_tcpconn(const sync_tcpconn&) = delete;
+    void operator=(const sync_tcpconn&) = delete;
     void init(const std::string& h, int port, const std::string& localhost, int localport) {
         h_ = h;
         port_ = port;
