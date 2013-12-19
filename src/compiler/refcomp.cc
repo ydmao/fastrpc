@@ -159,7 +159,8 @@ void nbcg::generateXC(const gp::FileDescriptor* file) const {
         auto s = file->service(i);
         xc_ << "template <typename BASE>\n"
             << "struct " << s->name() << "Client : BASE {\n"
-            << "    explicit " << s->name() << "Client(const " << s->name() << "Client<BASE>&){assert(0 && \"disallowed\");}\n"
+            << "    explicit " << s->name() << "Client(const " << s->name() << "Client<BASE>&) = delete;\n"
+            << "    void operator=(const " << s->name() << "Client<BASE>&) = delete;\n"
             << "    " << s->name() << "Client(): seq_(0) {}\n";
         for (int j = 0; j < s->method_count(); ++j) {
             auto m = s->method(j);
