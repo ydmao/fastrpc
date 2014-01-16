@@ -1,5 +1,6 @@
 #ifndef GREQUEST_HH
 #define GREQUEST_HH 1
+#include "rpc_common/fdstream.hh"
 #include "async_rpcc.hh"
 #include "sync_rpc.hh"
 
