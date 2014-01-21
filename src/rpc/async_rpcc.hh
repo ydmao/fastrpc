@@ -13,6 +13,7 @@ struct async_rpcc;
 struct rpc_handler {
     virtual void handle_rpc(async_rpcc *c, parser& p) = 0;
     virtual void handle_client_failure(async_rpcc *c) = 0;
+    virtual void handle_destroy(async_rpcc* c) = 0;
 };
 
 class async_rpcc : public tcpconn_handler {

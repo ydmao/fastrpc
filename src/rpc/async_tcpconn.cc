@@ -85,7 +85,7 @@ void async_tcpconn::refill_outbuf(uint32_t size) {
     }
 }
 
-int async_tcpconn::fill() {
+int async_tcpconn::fill(int* the_errno) {
     if (in_->head == in_->tail)
 	in_->head = in_->tail = 0;
 
@@ -100,8 +100,11 @@ int async_tcpconn::fill() {
 	else if ((r == -1 && (errno == EAGAIN || errno == EWOULDBLOCK))
 		 || (r == 0 && in_->tail != old_tail))
 	    break;
-	else
+	else {
+	    if (the_errno)
+	        *the_errno = errno;
 	    return 0;
+	}
     }
 
     if (old_tail != in_->tail) {
@@ -113,7 +116,7 @@ int async_tcpconn::fill() {
 	return 1;
 }
 
-int async_tcpconn::flush() {
+int async_tcpconn::flush(int* the_errno) {
     while (1) {
 	outbuf *x = out_writehead_;
 
@@ -140,8 +143,11 @@ int async_tcpconn::flush() {
 	else if (w == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
 	    eselect(ev::READ | ev::WRITE);
 	    return 1;
-	} else
+	} else {
+	    if (the_errno)
+	        *the_errno = errno;
 	    return 0;
+	}
     }
 }
 

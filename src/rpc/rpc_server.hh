@@ -70,6 +70,9 @@ struct async_rpc_server : public rpc_handler {
             }
         assert(0 && "connection not found? Impossible!");
     }
+    void handle_destroy(async_rpcc* c) {
+	delete c;
+    }
     std::list<async_rpcc*>& all_rpcc() {
         return clients_;
     }

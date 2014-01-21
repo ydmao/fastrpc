@@ -68,7 +68,8 @@ void async_rpcc::handle_error(async_tcpconn *, int the_errno) {
         if (q)
             q->process_connection_error(&c_);
     }
-    delete this;
+    if (rh_)
+    	rh_->handle_destroy(this);
 }
 
 void async_rpcc::expand_waiting() {

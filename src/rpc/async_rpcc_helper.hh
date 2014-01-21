@@ -8,16 +8,23 @@
 
 namespace rpc {
 
-class async_batched_rpcc {
+/** async_batched_rpcc promises that:
+ *   - the callback of every request will be called once, even on failure.
+ *   - on failure, the connection will first be disconnected, then all
+ *     the outstanding requests will be called to complete with its eno
+ *     set to RPCERR.
+ */
+class async_batched_rpcc : public rpc_handler {
   public:
-    async_batched_rpcc(async_rpcc* cl, int w)
-	: cl_(cl), loop_(nn_loop::get_tls_loop()), w_(w) {
+    async_batched_rpcc(const char* h, int port, int cid, int w)
+	: cl_(new async_rpcc(h, port, NULL, this, cid)), 
+	  loop_(nn_loop::get_tls_loop()), w_(w) {
     }
     bool drain() {
         mandatory_assert(loop_->enter() == 1,
                          "Don't call drain within a libev_loop!");
-        bool work_done = cl_->winsize();
-        while (cl_->winsize()) {
+        bool work_done = cl_ && cl_->winsize();
+        while (cl_ && cl_->winsize()) {
             mandatory_assert(!cl_->error());
             loop_->run_once();
         }
@@ -27,22 +34,47 @@ class async_batched_rpcc {
     int noutstanding() const {
         return cl_->winsize();
     }
+    void handle_rpc(async_rpcc*, parser&) {
+	assert(0 && "rpc client can't process rpc requests");
+    }
+    // called before outstanding requests are completed with error
+    void handle_client_failure(async_rpcc* c) {
+	assert(c == cl_);
+	cl_ = NULL;
+    }
+    // called after outstanding requests on c are completed with error
+    void handle_destroy(async_rpcc* c) {
+	delete c;
+    }
+    bool connected() const {
+	return cl_ != NULL;
+    }
 
   protected:
     void winctrl() {
-        if (w_ < 0)
-            return;
+	assert(w_ >= 0);
+	if (!cl_)
+	    return;
         if (w_ == 1 || cl_->winsize() % (w_/2) == 0)
-            cl_->connection().flush();
+            cl_->connection().flush(NULL);
         if (loop_->enter() == 1) {
-            while (cl_->winsize() >= w_) {
+            while (cl_ && cl_->winsize() >= w_) {
                 mandatory_assert(!cl_->error());
                 loop_->run_once();
             }
         }
         loop_->leave();
     }
+    template <typename T>
+    void call(T* g) {
+	if (cl_) {
+	    cl_->call(g);
+	    winctrl();
+	} else
+	    g->process_connection_error(NULL);
+    }
 
+  private:
     async_rpcc* cl_;
     nn_loop *loop_;
     int w_;

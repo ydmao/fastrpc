@@ -14,9 +14,7 @@ struct nn_loop;
 
 struct tcpconn_handler {
     virtual void buffered_read(async_tcpconn *c, uint8_t *buf, uint32_t len) = 0;
-    virtual void handle_error(async_tcpconn *c, int the_errno) {
-	(void) c, (void) the_errno;
-    }
+    virtual void handle_error(async_tcpconn *c, int the_errno) = 0;
 };
 
 struct async_tcpconn {
@@ -39,7 +37,7 @@ struct async_tcpconn {
     template <typename M>
     inline void write_reply(uint32_t proc, uint32_t seq, M &message);
 
-    int flush();
+    int flush(int* the_errno);
 
     void complete_onerror() {
         --noutstanding_;
@@ -78,7 +76,7 @@ struct async_tcpconn {
     void hard_eselect(int flags);
 
     inline void event_handler(ev::io &w, int e);
-    int fill();
+    int fill(int* the_errno);
 
     static inline outbuf *make_outbuf(uint32_t size);
     static inline void free_outbuf(outbuf *x);
@@ -93,15 +91,15 @@ inline void async_tcpconn::eselect(int flags) {
 
 inline void async_tcpconn::event_handler(ev::io &, int e) {
     int ok = 1;
+    int the_errno = 0;
     if (e & ev::READ)
-	ok = fill();
+	ok = fill(&the_errno);
     if (ok == 2 || (ok > 0 && (e & ev::WRITE)))
-	ok = flush();
-    int the_errno = errno;
-    if (ok <= 0)
+	ok = flush(&the_errno);
+    if (ok <= 0) {
 	eselect(0);
-    if (ok <= 0 && the_errno)
 	ioh_->handle_error(this, the_errno); // NB may delete `this`
+    }
 }
 
 inline void async_tcpconn::advance(uint8_t *head, uint32_t need_space) {

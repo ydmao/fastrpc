@@ -60,6 +60,8 @@ struct gcrequest : public gcrequest_base, public F {
         //reply_.set_eno(app_param::ErrorCode::RPCERR);
         default_eno<has_eno<reply_type>::value>::set(&reply_);
 	(static_cast<F &>(*this))(req_, reply_);
+	if (c)
+	    c->complete_onerror();
         delete this;
     }
 
