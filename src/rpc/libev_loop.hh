@@ -1,5 +1,4 @@
-#ifndef LIBEV_LOOP_HH
-#define LIBEV_LOOP_HH 1
+#pragma once
 
 #include "rpc_common/compiler.hh"
 #include "rpc_common/spinlock.hh"
@@ -104,4 +103,3 @@ struct nn_loop {
 };
 
 }
-#endif

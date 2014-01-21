@@ -1,5 +1,4 @@
-#ifndef GCREQUEST_HH
-#define GCREQUEST_HH
+#pragma once
 
 #include "rpc_common/util.hh"
 #include "rpc_parser.hh"
@@ -72,4 +71,3 @@ struct gcrequest : public gcrequest_base, public F {
 
 };
 
-#endif

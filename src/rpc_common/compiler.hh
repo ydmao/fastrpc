@@ -1,5 +1,5 @@
-#ifndef RPC_COMPILER_HH
-#define RPC_COMPILER_HH 1
+#pragma once
+
 void print_stacktrace();
 
 void check_unaligned_access();
@@ -8,5 +8,3 @@ void check_unaligned_access();
 extern void fail_mandatory_assert(const char *file, int line, const char *assertion,
 				  const char *message = 0) __attribute__((noreturn));
 #define mandatory_assert(x, ...) do { if (!(x)) fail_mandatory_assert(__FILE__, __LINE__, #x, ## __VA_ARGS__); } while (0)
-
-#endif

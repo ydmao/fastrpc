@@ -1,5 +1,5 @@
-#ifndef RPC_SERVER_BASE
-#define RPC_SERVER_BASE
+#pragma once
+
 #include <vector>
 #include "rpc_common/fdstream.hh"
 
@@ -17,4 +17,3 @@ struct rpc_server_base {
 
 };
 
-#endif

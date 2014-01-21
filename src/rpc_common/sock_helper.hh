@@ -1,5 +1,4 @@
-#ifndef RPC_SOCK_HELPER_HH
-#define RPC_SOCK_HELPER_HH
+#pragma once
 
 #include "rpc_common/compiler.hh"
 #include <sys/types.h>
@@ -113,4 +112,3 @@ class sock_helper {
 
 } // namespace common
 } // namespace rpc
-#endif

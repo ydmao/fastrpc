@@ -1,5 +1,5 @@
-#ifndef GREQUEST_HH
-#define GREQUEST_HH 1
+#pragma once
+
 #include "rpc_common/fdstream.hh"
 #include "async_rpcc.hh"
 #include "sync_rpc.hh"
@@ -103,4 +103,3 @@ struct req_maker {
 };
 
 } // namespace rpc
-#endif

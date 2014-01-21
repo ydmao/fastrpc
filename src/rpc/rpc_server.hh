@@ -1,5 +1,5 @@
-#ifndef RPC_SERVER_HH
-#define RPC_SERVER_HH
+#pragma once
+
 #include <ev++.h>
 #include <thread>
 #include <list>
@@ -147,4 +147,3 @@ struct threaded_rpc_server {
 
 }
 
-#endif

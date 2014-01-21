@@ -1,5 +1,4 @@
-#ifndef ASYNC_RPCC_HH_
-#define ASYNC_RPCC_HH_
+#pragma once
 
 #include "proto/fastrpc_proto.hh"
 #include "async_tcpconn.hh"
@@ -67,4 +66,3 @@ inline void async_rpcc::call(gcrequest<PROC, CB> *q) {
 }
 
 } // namespace rpc
-#endif /* RPC_EVENT_HH_ */

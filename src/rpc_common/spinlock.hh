@@ -1,5 +1,4 @@
-#ifndef RPC_SPINLOCK_HH_
-#define RPC_SPINLOCK_HH_
+#pragma once
 
 #include <inttypes.h>
 
@@ -54,4 +53,3 @@ inline void release(struct spinlock *lock) {
 } // namespace common
 } // namespace rpc
 
-#endif

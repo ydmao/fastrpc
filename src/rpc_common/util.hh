@@ -1,5 +1,5 @@
-#ifndef RPC_UTIL_HH_
-#define RPC_UTIL_HH_
+#pragma once
+
 #include <sstream>
 #include <iostream>
 #include <unistd.h>
@@ -42,4 +42,3 @@ inline double to_real(timeval tv) {
 }
 
 }} // namespace rpc::common
-#endif

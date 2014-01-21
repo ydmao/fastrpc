@@ -1,5 +1,4 @@
-#ifndef ASYNC_RPCC_HELPER
-#define ASYNC_RPCC_HELPER 1
+#pragma once
 
 #include "rpc_common/compiler.hh"
 #include "libev_loop.hh"
@@ -127,4 +126,3 @@ class make_binary_call_helper {
 
 } // namespace rpc
 
-#endif

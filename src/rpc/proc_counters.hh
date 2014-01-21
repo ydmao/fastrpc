@@ -1,5 +1,5 @@
-#ifndef PROC_COUNTERS_HH
-#define PROC_COUNTERS_HH 1
+#pragma once
+
 #include <stdint.h>
 namespace rpc {
 
@@ -69,4 +69,3 @@ template <unsigned NPROC> struct proc_counters<NPROC, false> {
 };
 
 } // namespace rpc
-#endif

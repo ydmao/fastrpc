@@ -1,5 +1,4 @@
-#ifndef STREAM_PARSER_HH
-#define STREAM_PARSER_HH
+#pragma once
 
 #include <string>
 #include <string.h>
@@ -158,4 +157,3 @@ struct stream_unparser {
 
 };
 
-#endif

@@ -1,5 +1,4 @@
-#ifndef CALLBACK_HH
-#define CALLBACK_HH
+#pragma once
 
 #include "proto/fastrpc_proto.hh"
 
@@ -69,4 +68,3 @@ struct check_eno_barrier {
 };
 
 }
-#endif

@@ -1,5 +1,5 @@
-#ifndef ASYNC_TCPCONN_HH
-#define ASYNC_TCPCONN_HH
+#pragma once
+
 #include "rpc_common/sock_helper.hh"
 #include "rpc_parser.hh"
 #include "proc_counters.hh"
@@ -154,4 +154,3 @@ inline void async_tcpconn::write_reply(uint32_t proc, uint32_t seq, M &message) 
 }
 
 } // namespace rpc
-#endif

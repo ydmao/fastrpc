@@ -1,5 +1,4 @@
-#ifndef RPC_PARSER_HH
-#define RPC_PARSER_HH
+#pragma once
 
 #include "libev_loop.hh"
 #include <ev++.h>
@@ -86,4 +85,3 @@ struct parser {
 };
 
 } // namespace rpc
-#endif
