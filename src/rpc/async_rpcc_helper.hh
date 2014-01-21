@@ -19,6 +19,12 @@ class async_batched_rpcc : public rpc_handler {
 	: cl_(new async_rpcc(h, port, NULL, this, cid)), 
 	  loop_(nn_loop::get_tls_loop()), w_(w) {
     }
+    ~async_batched_rpcc() {
+	if (cl_) {
+	    delete cl_;
+	    cl_ = NULL;
+	}
+    }
     bool drain() {
         mandatory_assert(loop_->enter() == 1,
                          "Don't call drain within a libev_loop!");
@@ -31,18 +37,21 @@ class async_batched_rpcc : public rpc_handler {
         return work_done;
     }
     int noutstanding() const {
-        return cl_->winsize();
+        return cl_ ? cl_->winsize() : 0;
     }
     void handle_rpc(async_rpcc*, parser&) {
 	assert(0 && "rpc client can't process rpc requests");
     }
     // called before outstanding requests are completed with error
     void handle_client_failure(async_rpcc* c) {
+	assert(cl_);
+	assert(c);
 	assert(c == cl_);
 	cl_ = NULL;
     }
     // called after outstanding requests on c are completed with error
     void handle_destroy(async_rpcc* c) {
+	assert(!cl_);
 	delete c;
     }
     bool connected() const {
