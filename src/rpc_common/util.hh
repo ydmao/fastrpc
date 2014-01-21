@@ -12,6 +12,12 @@
 namespace rpc {
 namespace common {
 
+inline double now() {
+    struct timeval tv;
+    gettimeofday(&tv, 0);
+    return tv.tv_sec + tv.tv_usec / 1000000.0;
+}
+
 inline uint64_t tous(double seconds) {
     mandatory_assert(seconds >= 0);
     return (uint64_t) (seconds * 1000000);
