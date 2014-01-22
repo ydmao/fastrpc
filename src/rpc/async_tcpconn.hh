@@ -55,7 +55,6 @@ struct async_tcpconn {
 
     int flush(int* the_errno);
 
-    void* caller_arg_;
     void shutdown() {
         ::shutdown(SHUT_RDWR, fd_);
     }

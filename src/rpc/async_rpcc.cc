@@ -25,7 +25,8 @@ async_rpcc::async_rpcc(int fd, rpc_handler* rh, int cid,
 		       proc_counters<app_param::nproc, true> *counts)
     : c_(fd, this), rh_(rh), 
       waiting_(new gcrequest_base *[1024]), waiting_capmask_(1023), 
-      seq_(random() / 2), noutstanding_(0), counts_(counts), cid_(cid) {
+      seq_(random() / 2), noutstanding_(0), counts_(counts), cid_(cid),
+      caller_arg_() {
     bzero(waiting_, sizeof(gcrequest_base *) * 1024);
 }
 

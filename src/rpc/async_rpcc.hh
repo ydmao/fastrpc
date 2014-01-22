@@ -43,6 +43,8 @@ class async_rpcc : public tcpconn_handler {
     template <typename M>
     void write_reply(uint32_t proc, uint32_t seq, M& message);
 
+    void* caller_arg_;
+
   private:
     async_tcpconn c_;
     gcrequest_base **waiting_;
