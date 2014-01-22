@@ -16,7 +16,7 @@ namespace rpc {
 class async_batched_rpcc : public rpc_handler {
   public:
     async_batched_rpcc(const char* h, int port, int cid, int w)
-	: cl_(new async_rpcc(h, port, NULL, this, cid)), 
+	: cl_(new async_rpcc(h, port, this, cid)), 
 	  loop_(nn_loop::get_tls_loop()), w_(w) {
     }
     ~async_batched_rpcc() {

@@ -17,9 +17,9 @@ struct rpc_handler {
 
 class async_rpcc : public tcpconn_handler {
   public:
-    async_rpcc(const char *host, int port, nn_loop *loop, rpc_handler* rh, int cid,
+    async_rpcc(const char *host, int port, rpc_handler* rh, int cid,
 	       proc_counters<app_param::nproc, true> *counts = 0);
-    async_rpcc(int fd, nn_loop *loop, rpc_handler* rh, int cid,
+    async_rpcc(int fd, rpc_handler* rh, int cid,
 	       proc_counters<app_param::nproc, true> *counts = 0);
     virtual ~async_rpcc();
     inline bool error() const {

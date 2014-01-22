@@ -16,15 +16,14 @@ namespace rpc {
 
 uint32_t gcrequest_base::last_latency_ = 0;
 
-async_rpcc::async_rpcc(const char *host, int port, nn_loop *loop, rpc_handler* rh,
-                       int cid,
+async_rpcc::async_rpcc(const char *host, int port, rpc_handler* rh, int cid,
 		       proc_counters<app_param::nproc, true> *counts)
-    : async_rpcc(rpc::common::sock_helper::connect(host, port), loop, rh, cid, counts) {
+    : async_rpcc(rpc::common::sock_helper::connect(host, port), rh, cid, counts) {
 }
 
-async_rpcc::async_rpcc(int fd, nn_loop *loop, rpc_handler* rh, int cid,
+async_rpcc::async_rpcc(int fd, rpc_handler* rh, int cid,
 		       proc_counters<app_param::nproc, true> *counts)
-    : c_(loop, fd, this, cid, counts), rh_(rh), 
+    : c_(fd, this, cid, counts), rh_(rh), 
       waiting_(new gcrequest_base *[1024]), waiting_capmask_(1023), 
       seq_(random() / 2) {
     bzero(waiting_, sizeof(gcrequest_base *) * 1024);
