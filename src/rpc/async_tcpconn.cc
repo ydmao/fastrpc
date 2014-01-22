@@ -11,7 +11,6 @@ async_tcpconn::async_tcpconn(int fd, tcpconn_handler *ioh, int cid,
     assert(fd_ >= 0);
     rpc::common::sock_helper::make_nodelay(fd_);
     rpc::common::sock_helper::make_nonblock(fd_);
-    refill_outbuf(1);
     ev_.set<async_tcpconn, &async_tcpconn::event_handler>(this);
     eselect(ev::READ);
 }
