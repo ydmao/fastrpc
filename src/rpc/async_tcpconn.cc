@@ -3,11 +3,10 @@
 
 namespace rpc {
 
-async_tcpconn::async_tcpconn(int fd, tcpconn_handler *ioh, int cid,
-			     proc_counters<app_param::nproc, true> *counts)
+async_tcpconn::async_tcpconn(int fd, tcpconn_handler *ioh)
     : in_(outbuf::make(1)),
-      ev_(nn_loop::get_loop()->ev_loop()), ev_flags_(0), fd_(fd), cid_(cid), ioh_(ioh),
-      counts_(counts), noutstanding_(0), caller_arg_(0) {
+      ev_(nn_loop::get_loop()->ev_loop()), ev_flags_(0),
+      fd_(fd), ioh_(ioh), caller_arg_(0) {
     assert(fd_ >= 0);
     rpc::common::sock_helper::make_nodelay(fd_);
     rpc::common::sock_helper::make_nonblock(fd_);

@@ -23,14 +23,14 @@ async_rpcc::async_rpcc(const char *host, int port, rpc_handler* rh, int cid,
 
 async_rpcc::async_rpcc(int fd, rpc_handler* rh, int cid,
 		       proc_counters<app_param::nproc, true> *counts)
-    : c_(fd, this, cid, counts), rh_(rh), 
+    : c_(fd, this), rh_(rh), 
       waiting_(new gcrequest_base *[1024]), waiting_capmask_(1023), 
-      seq_(random() / 2) {
+      seq_(random() / 2), noutstanding_(0), counts_(counts), cid_(cid) {
     bzero(waiting_, sizeof(gcrequest_base *) * 1024);
 }
 
 async_rpcc::~async_rpcc() {
-    mandatory_assert(!c_.noutstanding_);
+    mandatory_assert(!noutstanding_);
     delete[] waiting_;
 }
 
@@ -43,11 +43,16 @@ void async_rpcc::buffered_read(async_tcpconn *, uint8_t *buf, uint32_t len) {
 	    gcrequest_base *q = waiting_[rhdr->seq_ & waiting_capmask_];
             mandatory_assert(q && q->seq_ == rhdr->seq_ && "RPC reply but no waiting call");
 	    waiting_[rhdr->seq_ & waiting_capmask_] = 0;
-	    --c_.noutstanding_;
+	    --noutstanding_;
 	    gcrequest_base::last_latency_ = rhdr->latency();
-	    q->process_reply(p, &c_);
+	    // update counts_ before process_reply, which will delete itself
+	    if (counts_)
+	        counts_->add(q->proc(), count_recv_reply,
+                             sizeof(rpc_header) + p.header<rpc_header>()->payload_length(),
+                             rpc::common::tstamp() - q->start_at());
+	    q->process_reply(p);
         } else {
-            ++c_.noutstanding_;
+            ++noutstanding_;
             mandatory_assert(rh_);
             rh_->handle_rpc(this, p);
         }
@@ -58,14 +63,16 @@ void async_rpcc::buffered_read(async_tcpconn *, uint8_t *buf, uint32_t len) {
 void async_rpcc::handle_error(async_tcpconn *, int the_errno) {
     if (rh_)
         rh_->handle_client_failure(this);
-    if (c_.noutstanding_ != 0)
+    if (noutstanding_ != 0)
 	fprintf(stderr, "error: %d rpcs outstanding (%s)\n",
-		c_.noutstanding_, strerror(the_errno));
+		noutstanding_, strerror(the_errno));
     unsigned ncap = waiting_capmask_ + 1;
     for (int i = 0; i < ncap; ++i) {
         gcrequest_base* q = waiting_[i];
-        if (q)
-            q->process_connection_error(&c_);
+        if (q) {
+            q->process_connection_error();
+	    --noutstanding_;
+	}
     }
     if (rh_)
     	rh_->handle_destroy(this);

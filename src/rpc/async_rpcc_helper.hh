@@ -28,8 +28,8 @@ class async_batched_rpcc : public rpc_handler {
     bool drain() {
         mandatory_assert(loop_->enter() == 1,
                          "Don't call drain within a libev_loop!");
-        bool work_done = cl_ && cl_->winsize();
-        while (cl_ && cl_->winsize()) {
+        bool work_done = cl_ && cl_->noutstanding();
+        while (cl_ && cl_->noutstanding()) {
             mandatory_assert(!cl_->error());
             loop_->run_once();
         }
@@ -37,7 +37,7 @@ class async_batched_rpcc : public rpc_handler {
         return work_done;
     }
     int noutstanding() const {
-        return cl_ ? cl_->winsize() : 0;
+        return cl_ ? cl_->noutstanding() : 0;
     }
     void handle_rpc(async_rpcc*, parser&) {
 	assert(0 && "rpc client can't process rpc requests");
@@ -63,10 +63,10 @@ class async_batched_rpcc : public rpc_handler {
 	assert(w_ >= 0);
 	if (!cl_)
 	    return;
-        if (w_ == 1 || cl_->winsize() % (w_/2) == 0)
-            cl_->connection().flush(NULL);
+        if (w_ == 1 || cl_->noutstanding() % (w_/2) == 0)
+            cl_->flush();
         if (loop_->enter() == 1) {
-            while (cl_ && cl_->winsize() >= w_) {
+            while (cl_ && cl_->noutstanding() >= w_) {
                 mandatory_assert(!cl_->error());
                 loop_->run_once();
             }
@@ -79,7 +79,7 @@ class async_batched_rpcc : public rpc_handler {
 	    cl_->call(g);
 	    winctrl();
 	} else
-	    g->process_connection_error(NULL);
+	    g->process_connection_error();
     }
 
   private:

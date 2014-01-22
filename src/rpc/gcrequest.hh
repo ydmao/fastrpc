@@ -6,8 +6,10 @@
 namespace rpc {
 
 struct gcrequest_base {
-    virtual void process_reply(parser& p, async_tcpconn* c) = 0;
-    virtual void process_connection_error(async_tcpconn* c) = 0;
+    virtual void process_reply(parser& p) = 0;
+    virtual void process_connection_error() = 0;
+    virtual uint32_t proc() const = 0;
+    virtual uint64_t start_at() const = 0;
     virtual ~gcrequest_base() {
     }
     uint32_t seq_;
@@ -46,24 +48,23 @@ struct gcrequest : public gcrequest_base, public F {
     gcrequest(F callback): F(callback), tstart_(rpc::common::tstamp()) {
     }
     //@lat: latency in 100microseconds
-    void process_reply(parser& p, async_tcpconn *c) {
+    void process_reply(parser& p) {
 	p.parse_message(reply_);
-	if (c->counts_)
-	    c->counts_->add(PROC, count_recv_reply,
-                            sizeof(rpc_header) + p.header<rpc_header>()->payload_length(),
-                            rpc::common::tstamp() - tstart_);
 	(static_cast<F &>(*this))(req_, reply_);
         delete this;
     }
-    void process_connection_error(async_tcpconn* c) {
+    void process_connection_error() {
         //reply_.set_eno(app_param::ErrorCode::RPCERR);
         default_eno<has_eno<reply_type>::value>::set(&reply_);
 	(static_cast<F &>(*this))(req_, reply_);
-	if (c)
-	    c->complete_onerror();
         delete this;
     }
-
+    uint32_t proc() const {
+	return PROC;
+    }
+    uint64_t start_at() const {
+	return tstart_;
+    }
     request_type req_;
     reply_type reply_;
     uint64_t tstart_;
