@@ -103,8 +103,8 @@ struct threaded_rpc_server {
         while (true) {
             int s1 = accept(listener_, NULL, NULL);
             rpc::common::sock_helper::make_nodelay(s1);
-            auto t = new std::thread([&]{ process_client(s1); });
-            t->detach();
+            std::thread t([&]{ process_client(s1); });
+            t.detach();
         }
     }
 
