@@ -47,10 +47,11 @@ void async_rpcc::buffered_read(async_tcpconn *, uint8_t *buf, uint32_t len) {
 	    --noutstanding_;
 	    gcrequest_base::last_latency_ = rhdr->latency();
 	    // update counts_ before process_reply, which will delete itself
-	    if (counts_)
+	    if (counts_) {
 	        counts_->add(q->proc(), count_recv_reply,
-                             sizeof(rpc_header) + p.header<rpc_header>()->payload_length(),
-                             rpc::common::tstamp() - q->start_at());
+                             sizeof(rpc_header) + p.header<rpc_header>()->payload_length());
+		counts_->add_latency(q->proc(), rpc::common::tstamp() - q->start_at());
+	    }
 	    q->process_reply(p);
         } else {
             ++noutstanding_;
