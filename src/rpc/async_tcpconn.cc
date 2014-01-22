@@ -3,24 +3,9 @@
 
 namespace rpc {
 
-inline async_tcpconn::outbuf *async_tcpconn::make_outbuf(uint32_t size) {
-    if (size < 65520 - sizeof(outbuf))
-	size = 65520 - sizeof(outbuf);
-    outbuf *x = reinterpret_cast<outbuf *>(malloc(size + sizeof(outbuf)));
-    x->capacity = size;
-    x->head = x->tail = 0;
-    x->next = 0;
-    return x;
-}
-
-inline void async_tcpconn::free_outbuf(outbuf *x) {
-    free((void *) x);
-}
-
-
 async_tcpconn::async_tcpconn(int fd, tcpconn_handler *ioh, int cid,
 			     proc_counters<app_param::nproc, true> *counts)
-    : in_(make_outbuf(1)), out_writehead_(), out_bufhead_(), out_tail_(),
+    : in_(outbuf::make(1)),
       ev_(nn_loop::get_loop()->ev_loop()), ev_flags_(0), fd_(fd), cid_(cid), ioh_(ioh),
       counts_(counts), noutstanding_(0), caller_arg_(0) {
     assert(fd_ >= 0);
@@ -34,10 +19,16 @@ async_tcpconn::async_tcpconn(int fd, tcpconn_handler *ioh, int cid,
 async_tcpconn::~async_tcpconn() {
     eselect(0);
     close(fd_);
-    free_outbuf(in_);
-    while (outbuf *x = out_writehead_) {
-	out_writehead_ = x->next;
-	free_outbuf(x);
+    outbuf::free(in_);
+    while (!out_active_.empty()) {
+	outbuf* x = &(out_active_.front());
+	out_active_.pop_front();
+	outbuf::free(x);
+    }
+    while (!out_free_.empty()) {
+	outbuf* x = &(out_free_.front());
+	out_free_.pop_front();
+	outbuf::free(x);
     }
 }
 
@@ -58,32 +49,36 @@ void async_tcpconn::resize_inbuf(uint32_t size) {
     } else if (h + size > in_->capacity) {
 	if (size < in_->capacity * 2)
 	    size = in_->capacity * 2 + 16 + sizeof(outbuf);
-	outbuf *x = make_outbuf(size);
+	outbuf *x = outbuf::make(size);
 	x->tail = in_->tail - h;
 	memcpy(x->buf, in_->buf + h, x->tail);
-	free_outbuf(in_);
+	outbuf::free(in_);
 	in_ = x;
     }
 }
 
-/** Postcondition: out_bufhead_ has at least size bytes of space */
+/** Postcondition: out_active_.front() has at least size bytes of space */
 void async_tcpconn::refill_outbuf(uint32_t size) {
-    outbuf **pprev = &out_bufhead_;
-    while (*pprev && (*pprev)->tail + size > (*pprev)->capacity) {
-	outbuf *x = *pprev;
-	if (x->head == 0 && x != out_bufhead_) {
-	    *pprev = x->next;
-	    free_outbuf(x);
-	} else
-	    pprev = &x->next;
+    if (!out_active_.empty()) {
+        outbuf& x = out_active_.back();
+	if (x.tail + size <= x.capacity)
+	    return;
     }
-    if (*pprev)
-	out_bufhead_ = *pprev;
-    else {
-	*pprev = out_bufhead_ = out_tail_ = make_outbuf(size);
-	if (!out_writehead_)
-	    out_writehead_ = out_tail_;
+    auto prev = out_free_.begin();
+    for (auto it = out_free_.begin(); it != out_free_.end(); prev = it, ++it) {
+	if (it->tail + size <= it->capacity) {
+	    outbuf* x = it.operator->();
+	    if (it == out_free_.begin())
+		out_free_.pop_front();
+	    else
+	        out_free_.erase_after(prev);
+	    out_active_.push_back(*x);
+	    return;
+	}
     }
+    outbuf* x = outbuf::make(size);
+    mandatory_assert(x);
+    out_active_.push_back(*x);
 }
 
 int async_tcpconn::fill(int* the_errno) {
@@ -119,27 +114,22 @@ int async_tcpconn::fill(int* the_errno) {
 
 int async_tcpconn::flush(int* the_errno) {
     while (1) {
-	outbuf *x = out_writehead_;
-
-	// if out_writehead_ is complete (has no more data to write),
-	// either exit or move to next buffer
-	if (x->head == x->tail)
-	    x->head = x->tail = 0;
-	if (x->tail == 0 && x == out_bufhead_) {
+	if (out_active_.empty()) {
 	    eselect(ev::READ);
 	    return 1;
-	} else if (x->tail == 0) {
-	    out_tail_->next = x;
-	    out_writehead_ = x->next;
-	    x->next = 0;
-	    out_tail_ = x;
-	    continue;
 	}
+	outbuf* x = &(out_active_.front());
+	mandatory_assert(x->tail != x->head && x->tail);
 
 	ssize_t w = write(fd_, x->buf + x->head, x->tail - x->head);
-	if (w != 0 && w != -1)
+	if (w != 0 && w != -1) {
 	    x->head += w;
-	else if (w == -1 && errno == EINTR)
+	    if (x->head == x->tail) {
+		x->head = x->tail = 0;
+	        out_active_.pop_front();
+		out_free_.push_front(*x);
+	    }
+	} else if (w == -1 && errno == EINTR)
 	    /* do nothing */;
 	else if (w == -1 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
 	    eselect(ev::READ | ev::WRITE);

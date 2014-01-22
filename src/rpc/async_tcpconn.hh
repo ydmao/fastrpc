@@ -7,6 +7,10 @@
 #include <errno.h>
 #include <string.h>
 #include <ev++.h>
+#include <malloc.h>
+
+#include <boost/intrusive/slist.hpp>
+namespace bi = boost::intrusive;
 
 namespace rpc {
 struct async_tcpconn;
@@ -15,6 +19,26 @@ struct nn_loop;
 struct tcpconn_handler {
     virtual void buffered_read(async_tcpconn *c, uint8_t *buf, uint32_t len) = 0;
     virtual void handle_error(async_tcpconn *c, int the_errno) = 0;
+};
+
+struct outbuf : public bi::slist_base_hook<> {
+    static outbuf* make(uint32_t size) {
+        if (size < 65520 - sizeof(outbuf))
+	    size = 65520 - sizeof(outbuf);
+        outbuf *x = new (malloc(size + sizeof(outbuf))) outbuf;
+        x->capacity = size;
+        x->head = x->tail = 0;
+        return x;
+    }
+    static void free(outbuf* x) {
+	delete x;
+    }
+    uint32_t capacity;
+    uint32_t head;
+    uint32_t tail;
+    uint8_t buf[0];
+  private:
+    outbuf() {}
 };
 
 struct async_tcpconn {
@@ -49,18 +73,13 @@ struct async_tcpconn {
     }
 
   private:
-    struct outbuf {
-	uint32_t capacity;
-	uint32_t head;
-	uint32_t tail;
-	outbuf *next;
-	uint8_t buf[0];
-    };
-
     outbuf *in_;
-    outbuf *out_writehead_;
-    outbuf *out_bufhead_;
-    outbuf *out_tail_;
+
+    // active output buffers. 
+    // head is write/flush end, tail is buffering end
+    bi::slist<outbuf, bi::constant_time_size<false>, bi::cache_last<true> > out_active_;
+    bi::slist<outbuf, bi::constant_time_size<false>, bi::cache_last<false> > out_free_;
+
     ev::io ev_;
     int ev_flags_;
     int fd_;
@@ -78,8 +97,6 @@ struct async_tcpconn {
     inline void event_handler(ev::io &w, int e);
     int fill(int* the_errno);
 
-    static inline outbuf *make_outbuf(uint32_t size);
-    static inline void free_outbuf(outbuf *x);
     void resize_inbuf(uint32_t size);
     void refill_outbuf(uint32_t size);
 };
@@ -110,10 +127,10 @@ inline void async_tcpconn::advance(uint8_t *head, uint32_t need_space) {
 }
 
 inline uint8_t *async_tcpconn::reserve(uint32_t size) {
-    if (out_bufhead_->tail + size > out_bufhead_->capacity)
-	refill_outbuf(size);
-    uint8_t *x = out_bufhead_->buf + out_bufhead_->tail;
-    out_bufhead_->tail += size;
+    refill_outbuf(size);
+    outbuf& h = out_active_.back();
+    uint8_t *x = h.buf + h.tail;
+    h.tail += size;
     if (size)
 	eselect(ev::READ | ev::WRITE);
     return x;
