@@ -33,13 +33,22 @@ class async_rpcc : public tcpconn_handler {
 	c_.flush(NULL);
     }
 
-    template <uint32_t PROC, typename CB>
-    inline void call(gcrequest<PROC, CB> *q);
     void buffered_read(async_tcpconn *c, uint8_t *buf, uint32_t len);
     void handle_error(async_tcpconn *c, int the_errno);
 
+    template <uint32_t PROC, typename CB>
+    inline void call(gcrequest<PROC, CB> *q);
+
+    // complete an outstanding RPC.
+    // on network failure, don't write anything;
+    // otherwise, write reply to the underlying connection
+    template <typename R>
+    void execute(uint32_t proc, uint32_t seq, R& r);
+
+    // write request. Connection must have no error
     template <typename M>
     inline void write_request(uint32_t proc, uint32_t seq, M& message);
+    // write reply. Connection must have no error
     template <typename M>
     void write_reply(uint32_t proc, uint32_t seq, M& message);
 
@@ -66,6 +75,14 @@ inline void async_rpcc::call(gcrequest<PROC, CB> *q) {
     if (waiting_[seq_ & waiting_capmask_])
 	expand_waiting();
     waiting_[seq_ & waiting_capmask_] = q;
+}
+
+template <typename R>
+inline void async_rpcc::execute(uint32_t proc, uint32_t seq, R& r) {
+    if (!error())
+        write_reply(proc, seq, r);
+    else
+        --noutstanding_;
 }
 
 template <typename M>
