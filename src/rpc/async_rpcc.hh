@@ -18,8 +18,6 @@ struct rpc_handler {
 
 class async_rpcc : public tcpconn_handler {
   public:
-    async_rpcc(const char *host, int port, rpc_handler* rh, int cid,
-	       proc_counters<app_param::nproc, true> *counts = 0);
     async_rpcc(int fd, rpc_handler* rh, int cid,
 	       proc_counters<app_param::nproc, true> *counts = 0);
     virtual ~async_rpcc();
@@ -31,6 +29,9 @@ class async_rpcc : public tcpconn_handler {
     }
     inline void flush() {
 	c_.flush(NULL);
+    }
+    inline void shutdown() {
+	c_.shutdown();
     }
 
     void buffered_read(async_tcpconn *c, uint8_t *buf, uint32_t len);

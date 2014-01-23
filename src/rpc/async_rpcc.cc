@@ -16,11 +16,6 @@ namespace rpc {
 
 uint32_t gcrequest_base::last_latency_ = 0;
 
-async_rpcc::async_rpcc(const char *host, int port, rpc_handler* rh, int cid,
-		       proc_counters<app_param::nproc, true> *counts)
-    : async_rpcc(rpc::common::sock_helper::connect(host, port), rh, cid, counts) {
-}
-
 async_rpcc::async_rpcc(int fd, rpc_handler* rh, int cid,
 		       proc_counters<app_param::nproc, true> *counts)
     : c_(fd, this), rh_(rh), 

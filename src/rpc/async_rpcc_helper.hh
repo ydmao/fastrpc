@@ -15,15 +15,24 @@ namespace rpc {
  */
 class async_batched_rpcc : public rpc_handler {
   public:
-    async_batched_rpcc(const char* h, int port, int cid, int w)
-	: cl_(new async_rpcc(h, port, this, cid)), 
-	  loop_(nn_loop::get_tls_loop()), w_(w) {
+    async_batched_rpcc(const char* h, int port, int cid, int w, bool force_connected = true)
+	: h_(h), port_(port), cid_(cid), loop_(nn_loop::get_tls_loop()), w_(w) {
+	if (force_connected)
+	    mandatory_assert(connect());
     }
     ~async_batched_rpcc() {
 	if (cl_) {
 	    delete cl_;
 	    cl_ = NULL;
 	}
+    }
+    bool connect() {
+	mandatory_assert(!connected());
+	int fd = rpc::common::sock_helper::connect(h_.c_str(), port_);
+	if (fd < 0)
+	    return false;
+	cl_ = new async_rpcc(fd, this, cid_);
+	return true;
     }
     bool drain() {
         mandatory_assert(loop_->enter() == 1,
@@ -57,6 +66,10 @@ class async_batched_rpcc : public rpc_handler {
     bool connected() const {
 	return cl_ != NULL;
     }
+    void shutdown() {
+	if (cl_)
+	    cl_->shutdown();
+    }
 
   protected:
     void winctrl() {
@@ -83,6 +96,10 @@ class async_batched_rpcc : public rpc_handler {
     }
 
   private:
+    std::string h_;
+    int port_;
+    int cid_;
+
     async_rpcc* cl_;
     nn_loop *loop_;
     int w_;
