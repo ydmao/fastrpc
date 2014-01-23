@@ -58,7 +58,7 @@ struct sync_tcpconn {
         return fd_;
     }
     void shutdown() {
-        ::shutdown(SHUT_RDWR, fd_);
+        ::shutdown(fd_, SHUT_RDWR);
     }
     kvin* in() {
         return in_;
