@@ -381,6 +381,9 @@ void nbcg::generateRequestAnalyzer(const gp::FileDescriptor* file) const {
     xx_ << "struct app_param {\n"
         << "    typedef " << file->package() << "::ErrorCode ErrorCode;\n"
         << "    static constexpr uint32_t nproc = " << file->package() << "::ProcNumber::nproc;\n"
+	<< "    static const char* proc_name(uint32_t proc) {\n"
+	<< "        return " << file->package() << "::ProcNumber_Name(" << file->package() << "::ProcNumber(proc));\n"
+        << "    }\n"
         << "};\n";
 
     xx_ << "}; // namespace rpc\n";

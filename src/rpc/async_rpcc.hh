@@ -39,11 +39,14 @@ class async_rpcc : public tcpconn_handler {
     template <uint32_t PROC, typename CB>
     inline void call(gcrequest<PROC, CB> *q);
 
+    template <typename R>
+    void request_received(uint32_t proc, const R& r);
+
     // complete an outstanding RPC.
     // on network failure, don't write anything;
     // otherwise, write reply to the underlying connection
     template <typename R>
-    void execute(uint32_t proc, uint32_t seq, R& r);
+    void execute(uint32_t proc, uint32_t seq, R& r, uint64_t latency);
 
     // write request. Connection must have no error
     template <typename M>
@@ -78,10 +81,20 @@ inline void async_rpcc::call(gcrequest<PROC, CB> *q) {
 }
 
 template <typename R>
-inline void async_rpcc::execute(uint32_t proc, uint32_t seq, R& r) {
-    if (!error())
+inline void async_rpcc::request_received(uint32_t proc, const R& r) {
+    if (counts_)
+	counts_->add(proc, count_recv_request, r.ByteSize());
+}
+
+template <typename R>
+inline void async_rpcc::execute(uint32_t proc, uint32_t seq, R& r, uint64_t latency) {
+    if (!error()) {
+	if (counts_) {
+	    counts_->add(proc, count_sent_reply, r.ByteSize());
+	    counts_->add_latency(proc, latency);
+	}
         write_reply(proc, seq, r);
-    else
+    } else
         --noutstanding_;
 }
 
@@ -99,7 +112,7 @@ inline void async_rpcc::write_request(uint32_t proc, uint32_t seq, M& message) {
     message.SerializeToArray(x + sizeof(*h), req_sz);
     ++noutstanding_;
     if (counts_)
-	counts_->add(proc, count_sent_request, sizeof(rpc_header) + req_sz, 0);
+	counts_->add(proc, count_sent_request, sizeof(rpc_header) + req_sz);
 }
 
 template <typename M>
@@ -116,7 +129,7 @@ inline void async_rpcc::write_reply(uint32_t proc, uint32_t seq, M& message) {
     h->cid_ = cid_;
     message.SerializeToArray(x + sizeof(*h), reply_sz);
     if (counts_)
-	counts_->add(proc, count_sent_reply, sizeof(rpc_header) + reply_sz, 0);
+	counts_->add(proc, count_sent_reply, sizeof(rpc_header) + reply_sz);
 }
 
 } // namespace rpc
