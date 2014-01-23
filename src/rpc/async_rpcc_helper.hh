@@ -18,7 +18,7 @@ class async_batched_rpcc : public rpc_handler {
     async_batched_rpcc(const char* rmt, const char* local, int rmtport, 
 		       int cid, int w, bool force_connected = true)
 	: rmt_(rmt), local_(local), rmtport_(rmtport), 
-	  cid_(cid), loop_(nn_loop::get_tls_loop()), w_(w), deadcl_(NULL) {
+	  cid_(cid), loop_(nn_loop::get_tls_loop()), w_(w), cl_(NULL), deadcl_(NULL) {
 	if (force_connected)
 	    mandatory_assert(connect());
     }
