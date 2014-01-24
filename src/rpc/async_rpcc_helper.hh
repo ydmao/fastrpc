@@ -18,7 +18,7 @@ class async_batched_rpcc : public rpc_handler {
     async_batched_rpcc(const char* rmt, const char* local, int rmtport, 
 		       int cid, int w, bool force_connected = true)
 	: rmt_(rmt), local_(local), rmtport_(rmtport), 
-	  cid_(cid), loop_(nn_loop::get_tls_loop()), w_(w) {
+	  cid_(cid), loop_(nn_loop::get_tls_loop()), w_(w), deadcl_(NULL) {
 	if (force_connected)
 	    mandatory_assert(connect());
     }
@@ -29,7 +29,7 @@ class async_batched_rpcc : public rpc_handler {
 	}
     }
     bool connect() {
-	mandatory_assert(!connected());
+	mandatory_assert(safely_disconnected());
 	int fd = rpc::common::sock_helper::connect(rmt_.c_str(), rmtport_, local_.c_str(), 0);
 	if (fd < 0)
 	    return false;
@@ -50,6 +50,9 @@ class async_batched_rpcc : public rpc_handler {
     int noutstanding() const {
         return cl_ ? cl_->noutstanding() : 0;
     }
+    bool safely_disconnected() const {
+	return cl_ == NULL && deadcl_ == NULL;
+    }
     void handle_rpc(async_rpcc*, parser&) {
 	assert(0 && "rpc client can't process rpc requests");
     }
@@ -58,11 +61,13 @@ class async_batched_rpcc : public rpc_handler {
 	assert(cl_);
 	assert(c);
 	assert(c == cl_);
+	deadcl_ = cl_;
 	cl_ = NULL;
     }
     // called after outstanding requests on c are completed with error
     void handle_destroy(async_rpcc* c) {
-	assert(!cl_);
+	assert(!cl_ && deadcl_ == c);
+	deadcl_ = NULL;
 	delete c;
     }
     bool connected() const {
@@ -107,9 +112,10 @@ class async_batched_rpcc : public rpc_handler {
     int rmtport_;
     int cid_;
 
-    async_rpcc* cl_;
     nn_loop *loop_;
     int w_;
+    async_rpcc* cl_;
+    async_rpcc* deadcl_;
 };
 
 template <typename T>
