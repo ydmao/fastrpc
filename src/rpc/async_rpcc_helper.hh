@@ -137,6 +137,7 @@ template <typename T> make_reply_helper<T> make_reply(T &x) {
     return make_reply_helper<T>(x);
 }
 
+#if 0
 template <typename T, typename REQ, typename REPLY,
 	  void (T::*method)(REPLY &)>
 class make_unary_call_helper {
@@ -162,6 +163,7 @@ class make_binary_call_helper {
   private:
     T *obj_;
 };
+#endif
 
 } // namespace rpc
 
