@@ -37,9 +37,10 @@ typename std::enable_if<!has_eno<T>::value, void>::type set_default_eno(T* r) {
 
 template <uint32_t PROC, typename F>
 struct gcrequest : public gcrequest_base {
+  private:
     typedef typename analyze_grequest<PROC, false>::request_type request_type;
     typedef typename analyze_grequest<PROC, false>::reply_type reply_type;
-
+  public:
     gcrequest(F callback): cb_(callback), tstart_(rpc::common::tstamp()) {
     }
     //@lat: latency in 100microseconds
@@ -62,6 +63,7 @@ struct gcrequest : public gcrequest_base {
     }
     request_type req_;
     reply_type reply_;
+  private:
     F cb_;
     uint64_t tstart_;
 };
