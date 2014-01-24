@@ -36,23 +36,21 @@ typename std::enable_if<!has_eno<T>::value, void>::type set_default_eno(T* r) {
 }
 
 template <uint32_t PROC, typename F>
-struct gcrequest : public gcrequest_base {
-  private:
+struct gcrequest_iface : public gcrequest_base {
     typedef typename analyze_grequest<PROC, false>::request_type request_type;
     typedef typename analyze_grequest<PROC, false>::reply_type reply_type;
-  public:
-    gcrequest(F callback): cb_(callback), tstart_(rpc::common::tstamp()) {
+
+    gcrequest_iface(F callback): cb_(callback), tstart_(rpc::common::tstamp()) {
     }
-    //@lat: latency in 100microseconds
     void process_reply(parser& p) {
 	p.parse_message(reply_);
-	cb_.operator()(req_, reply_);
+	cb_.operator()(req(), reply_);
         delete this;
     }
     void process_connection_error() {
         //reply_.set_eno(app_param::ErrorCode::RPCERR);
         set_default_eno(&reply_);
-	cb_.operator()(req_, reply_);
+	cb_.operator()(req(), reply_);
         delete this;
     }
     uint32_t proc() const {
@@ -61,11 +59,39 @@ struct gcrequest : public gcrequest_base {
     uint64_t start_at() const {
 	return tstart_;
     }
-    request_type req_;
+    virtual request_type& req() = 0;
     reply_type reply_;
   private:
     F cb_;
     uint64_t tstart_;
+};
+
+// client request with inline storage for request
+template <uint32_t PROC, typename F>
+struct gcrequest : public gcrequest_iface<PROC, F> {
+    typedef typename gcrequest_iface<PROC, F>::request_type request_type;
+
+    gcrequest(F callback): gcrequest_iface<PROC, F>(callback)  {
+    }
+    request_type& req() {
+	return req_;
+    }
+    request_type req_;
+};
+
+// client request without storage for request
+template <uint32_t PROC, typename F>
+struct gcrequest_external : public gcrequest_iface<PROC, F> {
+    typedef typename gcrequest_iface<PROC, F>::request_type request_type;
+
+    gcrequest_external(F callback, request_type* req) 
+	: gcrequest_iface<PROC, F>(callback), req_(req)  {
+    }
+    request_type& req() {
+	assert(req_);
+	return *req_;
+    }
+    request_type* req_;
 };
 
 };

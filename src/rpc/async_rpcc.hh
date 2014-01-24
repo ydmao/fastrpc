@@ -38,7 +38,7 @@ class async_rpcc : public tcpconn_handler {
     void handle_error(async_tcpconn *c, int the_errno);
 
     template <uint32_t PROC, typename CB>
-    inline void call(gcrequest<PROC, CB> *q);
+    inline void call(gcrequest_iface<PROC, CB> *q);
 
     template <typename R>
     void request_received(uint32_t proc, const R& r);
@@ -72,10 +72,10 @@ class async_rpcc : public tcpconn_handler {
 };
 
 template <uint32_t PROC, typename CB>
-inline void async_rpcc::call(gcrequest<PROC, CB> *q) {
+inline void async_rpcc::call(gcrequest_iface<PROC, CB> *q) {
     ++seq_;
     q->seq_ = seq_;
-    write_request(PROC, seq_, q->req_);
+    write_request(PROC, seq_, q->req());
     if (waiting_[seq_ & waiting_capmask_])
 	expand_waiting();
     waiting_[seq_ & waiting_capmask_] = q;

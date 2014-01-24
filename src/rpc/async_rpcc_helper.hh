@@ -79,7 +79,7 @@ class async_batched_rpcc : public rpc_handler {
 
   protected:
     void winctrl() {
-	assert(w_ >= 0);
+	assert(w_ > 0);
 	if (!cl_)
 	    return;
         if (w_ == 1 || cl_->noutstanding() % (w_/2) == 0)
