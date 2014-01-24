@@ -38,6 +38,9 @@ class async_batched_rpcc : public rpc_handler, public async_rpcc {
     void handle_client_failure(async_rpcc* c) {
 	mandatory_assert(c == static_cast<async_rpcc*>(this));
     }
+    void handle_post_failure(async_rpcc* c) {
+	mandatory_assert(c == static_cast<async_rpcc*>(this));
+    }
     template <uint32_t PROC, typename CB>
     inline void call(gcrequest_iface<PROC, CB> *q) {
 	this->buffered_call(q);

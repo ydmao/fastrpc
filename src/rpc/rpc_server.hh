@@ -28,7 +28,7 @@ struct async_rpc_server : public rpc_handler {
     }
 
     async_rpcc* register_rpcc(int fd) {
-        async_rpcc *c = new async_rpcc(new onetime_tcpp(fd), this, random(), &opcount_);
+        async_rpcc *c = new async_rpcc(new onetime_tcpp(fd), this, random(), true, &opcount_);
         mandatory_assert(c);
         clients_.push_back(c);
         return c;
@@ -72,7 +72,7 @@ struct async_rpc_server : public rpc_handler {
             }
         assert(0 && "connection not found? Impossible!");
     }
-    void handle_destroy(async_rpcc* c) {
+    void handle_post_failure(async_rpcc* c) {
 	delete c;
     }
     std::list<async_rpcc*>& all_rpcc() {
