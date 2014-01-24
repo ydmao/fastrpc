@@ -120,7 +120,8 @@ void nbcg::generateXC(const gp::FileDescriptor* file) const {
     xc_ << "#pragma once\n"
         << "#include \"rpc/async_rpcc_helper.hh\"\n\n"
         << "#include \"rpc/sync_rpc.hh\"\n\n"
-        << "namespace " << file->package() << "{\n\n"
+        << "namespace " << file->package() << "{\n\n";
+#if 0
         << "template <typename SELF>\n"
         << "struct make_callable {\n";
 
@@ -154,7 +155,7 @@ void nbcg::generateXC(const gp::FileDescriptor* file) const {
         }
     }
     xc_ << "};\n\n";
-
+#endif
     for (int i = 0; i < file->service_count(); ++i) {
         auto s = file->service(i);
         xc_ << "template <typename BASE>\n"
