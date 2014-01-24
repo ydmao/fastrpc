@@ -16,23 +16,27 @@ namespace rpc {
 
 uint32_t gcrequest_base::last_server_latency_ = 0;
 
-async_rpcc::async_rpcc(int fd, rpc_handler* rh, int cid,
+async_rpcc::async_rpcc(tcp_provider* tcpp, 
+		       rpc_handler* rh, int cid, bool force_connected,
 		       proc_counters<app_param::nproc, true> *counts)
-    : c_(fd, this), rh_(rh), 
+    : tcpp_(tcpp), c_(NULL), rh_(rh), 
       waiting_(new gcrequest_base *[1024]), waiting_capmask_(1023), 
       seq_(random() / 2), noutstanding_(0), counts_(counts), cid_(cid),
       caller_arg_() {
     bzero(waiting_, sizeof(gcrequest_base *) * 1024);
+    if (force_connected)
+	mandatory_assert(connect());
 }
 
 async_rpcc::~async_rpcc() {
     mandatory_assert(!noutstanding_);
     delete[] waiting_;
+    delete tcpp_;
 }
 
 void async_rpcc::buffered_read(async_tcpconn *, uint8_t *buf, uint32_t len) {
     parser p;
-    while (p.parse<rpc_header>(buf, len, &c_)) {
+    while (p.parse<rpc_header>(buf, len, c_)) {
 	rpc_header *rhdr = p.header<rpc_header>();
         if (!rhdr->request()) {
             // Find the rpc request with sequence number @reply_hdr_.seq
@@ -57,7 +61,9 @@ void async_rpcc::buffered_read(async_tcpconn *, uint8_t *buf, uint32_t len) {
     }
 }
 
-void async_rpcc::handle_error(async_tcpconn *, int the_errno) {
+void async_rpcc::handle_error(async_tcpconn *c, int the_errno) {
+    mandatory_assert(c == c_);
+    c_ = NULL;
     if (rh_)
         rh_->handle_client_failure(this);
     if (noutstanding_ != 0)
@@ -67,12 +73,11 @@ void async_rpcc::handle_error(async_tcpconn *, int the_errno) {
     for (int i = 0; i < ncap; ++i) {
         gcrequest_base* q = waiting_[i];
         if (q) {
-            q->process_connection_error();
 	    --noutstanding_;
+            q->process_connection_error();
 	}
     }
-    if (rh_)
-    	rh_->handle_destroy(this);
+    delete c;
 }
 
 void async_rpcc::expand_waiting() {

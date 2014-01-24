@@ -13,109 +13,48 @@ namespace rpc {
  *     the outstanding requests will be called to complete with its eno
  *     set to RPCERR.
  */
-class async_batched_rpcc : public rpc_handler {
+class async_batched_rpcc : public rpc_handler, public async_rpcc {
   public:
     async_batched_rpcc(const char* rmt, const char* local, int rmtport, 
 		       int cid, int w, bool force_connected = true)
-	: rmt_(rmt), local_(local), rmtport_(rmtport), 
-	  cid_(cid), loop_(nn_loop::get_tls_loop()), w_(w), cl_(NULL), deadcl_(NULL) {
-	if (force_connected)
-	    mandatory_assert(connect());
+	: async_rpcc(new multi_tcpp(rmt, local, rmtport), this, cid, force_connected, NULL), 
+          loop_(nn_loop::get_tls_loop()), w_(w) {
     }
     ~async_batched_rpcc() {
-	if (cl_) {
-	    delete cl_;
-	    cl_ = NULL;
-	}
-    }
-    bool connect() {
-	mandatory_assert(safely_disconnected());
-	int fd = rpc::common::sock_helper::connect(rmt_.c_str(), rmtport_, local_.c_str(), 0);
-	if (fd < 0)
-	    return false;
-	cl_ = new async_rpcc(fd, this, cid_);
-	return true;
     }
     bool drain() {
         mandatory_assert(loop_->enter() == 1,
                          "Don't call drain within a libev_loop!");
-        bool work_done = cl_ && cl_->noutstanding();
-        while (cl_ && cl_->noutstanding()) {
-            mandatory_assert(!cl_->error());
+        bool work_done = noutstanding();
+        while (noutstanding())
             loop_->run_once();
-        }
         loop_->leave();
         return work_done;
     }
-    int noutstanding() const {
-        return cl_ ? cl_->noutstanding() : 0;
-    }
-    bool safely_disconnected() const {
-	return cl_ == NULL && deadcl_ == NULL;
-    }
     void handle_rpc(async_rpcc*, parser&) {
-	assert(0 && "rpc client can't process rpc requests");
+	mandatory_assert(0 && "rpc client can't process rpc requests");
     }
     // called before outstanding requests are completed with error
     void handle_client_failure(async_rpcc* c) {
-	assert(cl_);
-	assert(c);
-	assert(c == cl_);
-	deadcl_ = cl_;
-	cl_ = NULL;
-    }
-    // called after outstanding requests on c are completed with error
-    void handle_destroy(async_rpcc* c) {
-	assert(!cl_ && deadcl_ == c);
-	deadcl_ = NULL;
-	delete c;
-    }
-    bool connected() const {
-	return cl_ != NULL;
-    }
-    void shutdown() {
-	if (cl_)
-	    cl_->shutdown();
-    }
-    void flush() {
-	if (cl_)
-	    cl_->flush();
+	mandatory_assert(c == static_cast<async_rpcc*>(this));
     }
 
   protected:
     void winctrl() {
 	assert(w_ > 0);
-	if (!cl_)
+	if (!connected())
 	    return;
-        if (w_ == 1 || cl_->noutstanding() % (w_/2) == 0)
-            cl_->flush();
+        if (w_ == 1 || noutstanding() % (w_/2) == 0)
+            flush();
         if (loop_->enter() == 1) {
-            while (cl_ && cl_->noutstanding() >= w_) {
-                mandatory_assert(!cl_->error());
+            while (noutstanding() >= w_)
                 loop_->run_once();
-            }
         }
         loop_->leave();
     }
-    template <typename T>
-    void call(T* g) {
-	if (cl_) {
-	    cl_->call(g);
-	    winctrl();
-	} else
-	    g->process_connection_error();
-    }
-
   private:
-    std::string rmt_;
-    std::string local_;
-    int rmtport_;
-    int cid_;
-
     nn_loop *loop_;
     int w_;
-    async_rpcc* cl_;
-    async_rpcc* deadcl_;
 };
 
 template <typename T>

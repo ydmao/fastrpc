@@ -48,7 +48,7 @@ struct grequest_remote : public grequest<PROC, NB> {
     }
     using typename grequest<PROC, NB>::execute;
     inline void execute() {
-        c_->write_reply(PROC, this->seq_, this->reply_);
+        c_->write_reply(PROC, this->seq_, this->reply_, 0);
         if (!NB)
             delete this;
     }
