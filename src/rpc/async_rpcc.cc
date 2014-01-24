@@ -14,7 +14,7 @@ using std::endl;
 
 namespace rpc {
 
-uint32_t gcrequest_base::last_latency_ = 0;
+uint32_t gcrequest_base::last_server_latency_ = 0;
 
 async_rpcc::async_rpcc(int fd, rpc_handler* rh, int cid,
 		       proc_counters<app_param::nproc, true> *counts)
@@ -40,7 +40,7 @@ void async_rpcc::buffered_read(async_tcpconn *, uint8_t *buf, uint32_t len) {
             mandatory_assert(q && q->seq_ == rhdr->seq_ && "RPC reply but no waiting call");
 	    waiting_[rhdr->seq_ & waiting_capmask_] = 0;
 	    --noutstanding_;
-	    gcrequest_base::last_latency_ = rhdr->latency();
+	    gcrequest_base::last_server_latency_ = rhdr->latency();
 	    // update counts_ before process_reply, which will delete itself
 	    if (counts_) {
 	        counts_->add(q->proc(), count_recv_reply,

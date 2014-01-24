@@ -14,7 +14,7 @@ struct gcrequest_base {
     virtual ~gcrequest_base() {
     }
     uint32_t seq_;
-    static uint32_t last_latency_;
+    static uint32_t last_server_latency_;
 };
 
 template <typename T>
