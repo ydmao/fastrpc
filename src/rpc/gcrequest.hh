@@ -2,6 +2,7 @@
 
 #include "rpc_common/util.hh"
 #include "rpc_parser.hh"
+#include <type_traits>
 
 namespace rpc {
 
@@ -25,20 +26,14 @@ struct has_eno {
     static const bool value = (sizeof(test<T>(0)) == 1);
 };
 
-template <bool>
-struct default_eno {
-    template <typename T>
-    static void set(T*) {
-    }
-};
+template <typename T>
+typename std::enable_if<has_eno<T>::value, void>::type set_default_eno(T* r) {
+    r->set_eno(app_param::ErrorCode::RPCERR);
+}
 
-template <>
-struct default_eno<true> {
-    template <typename T>
-    static void set(T* r) {
-        r->set_eno(app_param::ErrorCode::RPCERR);
-    }
-};
+template <typename T>
+typename std::enable_if<!has_eno<T>::value, void>::type set_default_eno(T* r) {
+}
 
 template <uint32_t PROC, typename F>
 struct gcrequest : public gcrequest_base {
@@ -55,7 +50,7 @@ struct gcrequest : public gcrequest_base {
     }
     void process_connection_error() {
         //reply_.set_eno(app_param::ErrorCode::RPCERR);
-        default_eno<has_eno<reply_type>::value>::set(&reply_);
+        set_default_eno(&reply_);
 	cb_.operator()(req_, reply_);
         delete this;
     }
