@@ -15,8 +15,10 @@ namespace rpc {
  */
 class async_batched_rpcc : public rpc_handler {
   public:
-    async_batched_rpcc(const char* h, int port, int cid, int w, bool force_connected = true)
-	: h_(h), port_(port), cid_(cid), loop_(nn_loop::get_tls_loop()), w_(w) {
+    async_batched_rpcc(const char* rmt, const char* local, int rmtport, 
+		       int cid, int w, bool force_connected = true)
+	: rmt_(rmt), local_(local), rmtport_(rmtport), 
+	  cid_(cid), loop_(nn_loop::get_tls_loop()), w_(w) {
 	if (force_connected)
 	    mandatory_assert(connect());
     }
@@ -28,7 +30,7 @@ class async_batched_rpcc : public rpc_handler {
     }
     bool connect() {
 	mandatory_assert(!connected());
-	int fd = rpc::common::sock_helper::connect(h_.c_str(), port_);
+	int fd = rpc::common::sock_helper::connect(rmt_.c_str(), rmtport_, local_.c_str(), 0);
 	if (fd < 0)
 	    return false;
 	cl_ = new async_rpcc(fd, this, cid_);
@@ -70,6 +72,10 @@ class async_batched_rpcc : public rpc_handler {
 	if (cl_)
 	    cl_->shutdown();
     }
+    void flush() {
+	if (cl_)
+	    cl_->flush();
+    }
 
   protected:
     void winctrl() {
@@ -96,8 +102,9 @@ class async_batched_rpcc : public rpc_handler {
     }
 
   private:
-    std::string h_;
-    int port_;
+    std::string rmt_;
+    std::string local_;
+    int rmtport_;
     int cid_;
 
     async_rpcc* cl_;

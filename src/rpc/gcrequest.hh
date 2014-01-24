@@ -41,22 +41,22 @@ struct default_eno<true> {
 };
 
 template <uint32_t PROC, typename F>
-struct gcrequest : public gcrequest_base, public F {
+struct gcrequest : public gcrequest_base {
     typedef typename analyze_grequest<PROC, false>::request_type request_type;
     typedef typename analyze_grequest<PROC, false>::reply_type reply_type;
 
-    gcrequest(F callback): F(callback), tstart_(rpc::common::tstamp()) {
+    gcrequest(F callback): cb_(callback), tstart_(rpc::common::tstamp()) {
     }
     //@lat: latency in 100microseconds
     void process_reply(parser& p) {
 	p.parse_message(reply_);
-	(static_cast<F &>(*this))(req_, reply_);
+	cb_.operator()(req_, reply_);
         delete this;
     }
     void process_connection_error() {
         //reply_.set_eno(app_param::ErrorCode::RPCERR);
         default_eno<has_eno<reply_type>::value>::set(&reply_);
-	(static_cast<F &>(*this))(req_, reply_);
+	cb_.operator()(req_, reply_);
         delete this;
     }
     uint32_t proc() const {
@@ -67,6 +67,7 @@ struct gcrequest : public gcrequest_base, public F {
     }
     request_type req_;
     reply_type reply_;
+    F cb_;
     uint64_t tstart_;
 };
 
