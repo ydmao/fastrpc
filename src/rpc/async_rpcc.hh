@@ -74,14 +74,15 @@ class async_rpcc : public tcpconn_handler {
     void buffered_read(async_tcpconn *c, uint8_t *buf, uint32_t len);
     void handle_error(async_tcpconn *c, int the_errno);
 
-    template <uint32_t PROC, typename CB>
-    inline void call(gcrequest_iface<PROC, CB> *q);
-
     // write reply. Connection may have error
     template <typename M>
     void write_reply(uint32_t proc, uint32_t seq, M& message, uint64_t latency);
 
     void* caller_arg_;
+
+  protected:
+    template <uint32_t PROC, typename CB>
+    inline void buffered_call(gcrequest_iface<PROC, CB> *q);
 
   private:
     tcp_provider* tcpp_;
@@ -102,7 +103,7 @@ class async_rpcc : public tcpconn_handler {
 };
 
 template <uint32_t PROC, typename CB>
-inline void async_rpcc::call(gcrequest_iface<PROC, CB> *q) {
+inline void async_rpcc::buffered_call(gcrequest_iface<PROC, CB> *q) {
     if (!connected()) {
 	q->process_connection_error();
 	return;
