@@ -35,12 +35,13 @@ template <typename T>
 typename std::enable_if<!has_eno<T>::value, void>::type set_default_eno(T* r) {
 }
 
-template <uint32_t PROC, typename F>
+template <uint32_t PROC>
 struct gcrequest_iface : public gcrequest_base {
     typedef typename analyze_grequest<PROC, false>::request_type request_type;
     typedef typename analyze_grequest<PROC, false>::reply_type reply_type;
+    typedef std::function<void(request_type&, reply_type&)> callback_type;
 
-    gcrequest_iface(F callback): cb_(callback), tstart_(rpc::common::tstamp()) {
+    gcrequest_iface(callback_type cb): cb_(cb), tstart_(rpc::common::tstamp()) {
     }
     void process_reply(parser& p) {
 	p.parse_message(reply_);
@@ -62,16 +63,18 @@ struct gcrequest_iface : public gcrequest_base {
     virtual request_type& req() = 0;
     reply_type reply_;
   private:
-    F cb_;
+    callback_type cb_;
     uint64_t tstart_;
 };
 
 // client request with inline storage for request
-template <uint32_t PROC, typename F>
-struct gcrequest : public gcrequest_iface<PROC, F> {
-    typedef typename gcrequest_iface<PROC, F>::request_type request_type;
+template <uint32_t PROC>
+struct gcrequest : public gcrequest_iface<PROC> {
+    typedef gcrequest_iface<PROC> base;
+    typedef typename base::request_type request_type;
+    typedef typename base::callback_type callback_type;
 
-    gcrequest(F callback): gcrequest_iface<PROC, F>(callback)  {
+    gcrequest(callback_type cb): gcrequest_iface<PROC>(cb)  {
     }
     request_type& req() {
 	return req_;
@@ -80,12 +83,14 @@ struct gcrequest : public gcrequest_iface<PROC, F> {
 };
 
 // client request without storage for request
-template <uint32_t PROC, typename F>
-struct gcrequest_external : public gcrequest_iface<PROC, F> {
-    typedef typename gcrequest_iface<PROC, F>::request_type request_type;
+template <uint32_t PROC>
+struct gcrequest_external : public gcrequest_iface<PROC> {
+    typedef gcrequest_iface<PROC> base;
+    typedef typename base::request_type request_type;
+    typedef typename base::callback_type callback_type;
 
-    gcrequest_external(F callback, request_type* req) 
-	: gcrequest_iface<PROC, F>(callback), req_(req)  {
+    gcrequest_external(callback_type cb, request_type* req) 
+	: gcrequest_iface<PROC>(cb), req_(req)  {
     }
     request_type& req() {
 	assert(req_);

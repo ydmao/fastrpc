@@ -15,8 +15,8 @@ namespace rpc {
  */
 class async_batched_rpcc : public rpc_handler, public async_rpcc {
   public:
-    async_batched_rpcc(const char* rmt, const char* local, int rmtport, 
-		       int cid, int w, bool force_connected = true)
+    async_batched_rpcc(const char* rmt, int rmtport, int w, int cid = 0,
+		       const char* local = "0.0.0.0", bool force_connected = true)
 	: async_rpcc(new multi_tcpp(rmt, local, rmtport), this, cid, force_connected, NULL), 
           loop_(nn_loop::get_tls_loop()), w_(w) {
     }
@@ -41,10 +41,16 @@ class async_batched_rpcc : public rpc_handler, public async_rpcc {
     void handle_post_failure(async_rpcc* c) {
 	mandatory_assert(c == static_cast<async_rpcc*>(this));
     }
-    template <uint32_t PROC, typename CB>
-    inline void call(gcrequest_iface<PROC, CB> *q) {
+    template <uint32_t PROC>
+    inline void call(gcrequest_iface<PROC> *q) {
 	this->buffered_call(q);
 	winctrl();
+    }
+    template <uint32_t PROC, typename MAKEREQ, typename F>
+    inline void call(F cb) {
+	auto g = new rpc::gcrequest<PROC>(cb);
+	MAKEREQ(g->req());
+	call(g);
     }
 
   protected:
