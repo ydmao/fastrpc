@@ -1,20 +1,20 @@
-#include "async_tcpconn.hh"
+#include "async_transport.hh"
 #include "libev_loop.hh"
 
 namespace rpc {
 
-async_tcpconn::async_tcpconn(int fd, tcpconn_handler *ioh)
+async_transport::async_transport(int fd, transport_handler *ioh)
     : in_(outbuf::make(1)),
       ev_(nn_loop::get_loop()->ev_loop()), ev_flags_(0),
       fd_(fd), ioh_(ioh) {
     assert(fd_ >= 0);
     rpc::common::sock_helper::make_nodelay(fd_);
     rpc::common::sock_helper::make_nonblock(fd_);
-    ev_.set<async_tcpconn, &async_tcpconn::event_handler>(this);
+    ev_.set<async_transport, &async_transport::event_handler>(this);
     eselect(ev::READ);
 }
 
-async_tcpconn::~async_tcpconn() {
+async_transport::~async_transport() {
     eselect(0);
     close(fd_);
     outbuf::free(in_);
@@ -30,7 +30,7 @@ async_tcpconn::~async_tcpconn() {
     }
 }
 
-void async_tcpconn::hard_eselect(int flags) {
+void async_transport::hard_eselect(int flags) {
     if (ev_flags_)
 	ev_.stop();
     if ((ev_flags_ = flags))
@@ -38,7 +38,7 @@ void async_tcpconn::hard_eselect(int flags) {
 }
 
 /** Postcondition: in_ has at least size bytes of space from head_ */
-void async_tcpconn::resize_inbuf(uint32_t size) {
+void async_transport::resize_inbuf(uint32_t size) {
     uint32_t h = in_->head;
     if (h + size > in_->capacity && size < in_->capacity / 2) {
 	in_->tail -= h;
@@ -56,7 +56,7 @@ void async_tcpconn::resize_inbuf(uint32_t size) {
 }
 
 /** Postcondition: out_active_.front() has at least size bytes of space */
-void async_tcpconn::refill_outbuf(uint32_t size) {
+void async_transport::refill_outbuf(uint32_t size) {
     if (!out_active_.empty()) {
         outbuf& x = out_active_.back();
 	if (x.tail + size <= x.capacity)
@@ -79,7 +79,7 @@ void async_tcpconn::refill_outbuf(uint32_t size) {
     out_active_.push_back(*x);
 }
 
-int async_tcpconn::fill(int* the_errno) {
+int async_transport::fill(int* the_errno) {
     if (in_->head == in_->tail)
 	in_->head = in_->tail = 0;
 
@@ -110,7 +110,7 @@ int async_tcpconn::fill(int* the_errno) {
 	return 1;
 }
 
-int async_tcpconn::flush(int* the_errno) {
+int async_transport::flush(int* the_errno) {
     while (1) {
 	if (out_active_.empty()) {
 	    eselect(ev::READ);

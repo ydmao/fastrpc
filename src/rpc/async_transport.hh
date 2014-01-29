@@ -13,11 +13,11 @@
 namespace bi = boost::intrusive;
 
 namespace rpc {
-struct async_tcpconn;
+struct async_transport;
 
-struct tcpconn_handler {
-    virtual void buffered_read(async_tcpconn* c, uint8_t* buf, uint32_t len) = 0;
-    virtual void handle_error(async_tcpconn* c, int the_errno) = 0;
+struct transport_handler {
+    virtual void buffered_read(async_transport* c, uint8_t* buf, uint32_t len) = 0;
+    virtual void handle_error(async_transport* c, int the_errno) = 0;
 };
 
 struct outbuf : public bi::slist_base_hook<> {
@@ -40,9 +40,9 @@ struct outbuf : public bi::slist_base_hook<> {
     outbuf() {}
 };
 
-struct async_tcpconn {
-    async_tcpconn(int fd, tcpconn_handler *ioh);
-    ~async_tcpconn();
+struct async_transport {
+    async_transport(int fd, transport_handler *ioh);
+    ~async_transport();
     bool error() const {
         return ev_flags_ == 0;
     }
@@ -70,7 +70,7 @@ struct async_tcpconn {
     ev::io ev_;
     int ev_flags_;
     int fd_;
-    tcpconn_handler *ioh_;
+    transport_handler *ioh_;
 
     inline void eselect(int flags);
     void hard_eselect(int flags);
@@ -82,12 +82,12 @@ struct async_tcpconn {
     void refill_outbuf(uint32_t size);
 };
 
-inline void async_tcpconn::eselect(int flags) {
+inline void async_transport::eselect(int flags) {
     if (ev_flags_ != flags)
 	hard_eselect(flags);
 }
 
-inline void async_tcpconn::event_handler(ev::io &, int e) {
+inline void async_transport::event_handler(ev::io &, int e) {
     int ok = 1;
     int the_errno = 0;
     if (e & ev::READ)
@@ -100,14 +100,14 @@ inline void async_tcpconn::event_handler(ev::io &, int e) {
     }
 }
 
-inline void async_tcpconn::advance(uint8_t *head, uint32_t need_space) {
+inline void async_transport::advance(uint8_t *head, uint32_t need_space) {
     assert(head >= in_->buf + in_->head && head <= in_->buf + in_->tail);
     in_->head = head - in_->buf;
     if (in_->head + need_space > in_->capacity)
 	resize_inbuf(need_space);
 }
 
-inline uint8_t *async_tcpconn::reserve(uint32_t size) {
+inline uint8_t *async_transport::reserve(uint32_t size) {
     refill_outbuf(size);
     outbuf& h = out_active_.back();
     uint8_t *x = h.buf + h.tail;

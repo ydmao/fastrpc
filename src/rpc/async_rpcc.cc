@@ -1,5 +1,5 @@
 #include "async_rpcc.hh"
-#include "async_tcpconn.hh"
+#include "async_transport.hh"
 #include "rpc_common/compiler.hh"
 #include "rpc_common/sock_helper.hh"
 #include <iostream>
@@ -34,7 +34,7 @@ async_rpcc::~async_rpcc() {
     delete tcpp_;
 }
 
-void async_rpcc::buffered_read(async_tcpconn *, uint8_t *buf, uint32_t len) {
+void async_rpcc::buffered_read(async_transport *, uint8_t *buf, uint32_t len) {
     parser p;
     while (p.parse<rpc_header>(buf, len, c_)) {
 	rpc_header *rhdr = p.header<rpc_header>();
@@ -61,7 +61,7 @@ void async_rpcc::buffered_read(async_tcpconn *, uint8_t *buf, uint32_t len) {
     }
 }
 
-void async_rpcc::handle_error(async_tcpconn *c, int the_errno) {
+void async_rpcc::handle_error(async_transport *c, int the_errno) {
     mandatory_assert(c == c_);
     c_ = NULL;
     if (rh_)
