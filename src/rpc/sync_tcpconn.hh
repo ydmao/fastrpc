@@ -9,8 +9,8 @@
 
 namespace rpc {
 
-struct spinlock_object {
-    spinlock_object() : lock_(ATOMIC_FLAG_INIT) {
+struct spinlock {
+    spinlock() : lock_(ATOMIC_FLAG_INIT) {
     }
     void lock() {
         while (lock_.test_and_set(std::memory_order_acquire))
@@ -23,8 +23,13 @@ struct spinlock_object {
     std::atomic_flag lock_;
 };
 
+struct nop_lock {
+    void lock() {}
+    void unlock() {}
+};
+
 template <typename T>
-struct buffered_tcpconn : public spinlock_object, public std::enable_shared_from_this<buffered_tcpconn<T> > {
+struct buffered_tcpconn : public T {
     buffered_tcpconn(int fd) 
 	: fd_(fd), in_(fd, 65536), out_(fd, 65536) {
 	assert(fd_ >= 0);
@@ -33,9 +38,9 @@ struct buffered_tcpconn : public spinlock_object, public std::enable_shared_from
 	close(fd_);
     }
     bool safe_flush() {
-	lock();
+	this->lock();
 	bool ok = flush();
-	unlock();
+	this->unlock();
 	return ok;
     }
     bool flush() {
@@ -58,18 +63,16 @@ struct buffered_tcpconn : public spinlock_object, public std::enable_shared_from
     }
     template <typename REPLY>
     void safe_send_reply(const REPLY& reply, const rpc::rpc_header& h, bool doflush) {
-	lock();
+	this->lock();
 	rpc::send_reply(&out_, h.mproc(), h.seq_, h.cid_, reply);
 	if (doflush)
 	    flush();
-	unlock();
+	this->unlock();
     }
     template <typename M, typename REPLY>
     bool sync_call(int cid, uint32_t seq, uint32_t proc, const M& req, REPLY& r) {
 	return rpc::sync_call(&out_, &in_, cid, seq, proc, req, r);
     }
-
-    T context_;
 
   private:
     int fd_;
@@ -77,7 +80,7 @@ struct buffered_tcpconn : public spinlock_object, public std::enable_shared_from
     kvout out_;
 };
 
-struct buffered_tcpconn_client : public spinlock_object {
+struct buffered_tcpconn_client : public spinlock {
     buffered_tcpconn_client() : buffered_tcpconn_client("", 0) {
     }
     buffered_tcpconn_client(const std::string& h, int port) 
@@ -100,7 +103,7 @@ struct buffered_tcpconn_client : public spinlock_object {
             if (fd < 0)
                 return false;
             rpc::common::sock_helper::make_nodelay(fd);
-	    conn_ = new buffered_tcpconn<int>(fd);
+	    conn_ = new buffered_tcpconn<nop_lock>(fd);
         }
         return true;
     }
@@ -144,7 +147,7 @@ struct buffered_tcpconn_client : public spinlock_object {
     int port_;
     std::string localhost_;
     int localport_;
-    buffered_tcpconn<int>* conn_;
+    buffered_tcpconn<nop_lock>* conn_;
     int cid_;
 };
 }
