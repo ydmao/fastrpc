@@ -57,9 +57,12 @@ struct buffered_tcpconn : public T {
     bool read_reply(rpc::rpc_header& h, M& m) {
 	return rpc::read_reply(&in_, m, h);
     }
-    template <typename M>
-    bool send_request(uint32_t proc, uint32_t seq, uint32_t cid, const M& m) {
-	return rpc::send_request(&out_, proc, seq, cid, m);
+    template <typename PROC, typename M>
+    bool send_request(PROC proc, uint32_t seq, uint32_t cid, const M& m, bool doflush) {
+	bool ok = rpc::send_request(&out_, proc, seq, cid, m);
+	if (ok && doflush)
+	    flush();
+	return ok;
     }
     template <typename REPLY>
     void safe_send_reply(const REPLY& reply, const rpc::rpc_header& h, bool doflush) {
@@ -69,8 +72,8 @@ struct buffered_tcpconn : public T {
 	    flush();
 	this->unlock();
     }
-    template <typename M, typename REPLY>
-    bool sync_call(int cid, uint32_t seq, uint32_t proc, const M& req, REPLY& r) {
+    template <typename PROC, typename M, typename REPLY>
+    bool sync_call(int cid, uint32_t seq, PROC proc, const M& req, REPLY& r) {
 	return rpc::sync_call(&out_, &in_, cid, seq, proc, req, r);
     }
 
@@ -125,13 +128,13 @@ struct buffered_tcpconn_client : public spinlock {
 	assert(connected());
 	return conn_->read_reply(h, m);
     }
-    template <typename M>
-    bool send_request(uint32_t proc, uint32_t seq, const M& m) {
+    template <typename PROC, typename M>
+    bool send_request(PROC proc, uint32_t seq, const M& m, bool doflush) {
 	assert(connected());
-	return conn_->send_request(proc, seq, cid_, m);
+	return conn_->send_request(proc, seq, cid_, m, doflush);
     }
-    template <typename M, typename REPLY>
-    bool sync_call(uint32_t seq, uint32_t proc, const M& req, REPLY& r) {
+    template <typename PROC, typename M, typename REPLY>
+    bool sync_call(uint32_t seq, PROC proc, const M& req, REPLY& r) {
 	assert(connected());
 	return conn_->sync_call(cid_, seq, proc, req, r);
     }

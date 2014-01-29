@@ -172,8 +172,7 @@ void nbcg::generateXC(const gp::FileDescriptor* file) const {
                 << "    }\n";
             xc_ << "    bool send_" << m->name() << "(const " << m->input_type()->name() << "& req) {\n"
                 << "        if (!this->connect()) { return false; }\n"
-                << "        if (!this->send_request(ProcNumber::" << m->name() << ", seq_++, req)){ this->disconnect(); return false; }\n"
-                << "        this->flush(); \n"
+                << "        if (!this->send_request(ProcNumber::" << m->name() << ", seq_++, req, true)){ this->disconnect(); return false; }\n"
                 << "        return true;\n"
                 << "    }\n";
             xc_ << "    bool recv_" << m->name() << "(" << m->output_type()->name() << "& reply) {\n"
