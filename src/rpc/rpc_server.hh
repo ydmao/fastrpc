@@ -12,8 +12,9 @@
 
 namespace rpc {
 
-struct async_rpc_server : public rpc_handler {
-    typedef async_rpc_server self;
+template <typename T>
+struct async_rpc_server : public rpc_handler<T> {
+    typedef async_rpc_server<T> self;
 
     async_rpc_server(int port, const std::string& h) : listener_ev_(nn_loop::get_tls_loop()->ev_loop()) {
         listener_ = rpc::common::sock_helper::listen(h, port, 100);
@@ -27,8 +28,8 @@ struct async_rpc_server : public rpc_handler {
 	    close(listener_);
     }
 
-    async_rpcc* register_rpcc(int fd) {
-        async_rpcc *c = new async_rpcc(new onetime_tcpp(fd), this, random(), true, &opcount_);
+    async_rpcc<T>* register_rpcc(int fd) {
+        async_rpcc<T> *c = new async_rpcc<T>(new onetime_tcpp(fd), this, random(), true, &opcount_);
         mandatory_assert(c);
         clients_.push_back(c);
         return c;
@@ -44,7 +45,7 @@ struct async_rpc_server : public rpc_handler {
         return opcount_;
     }
 
-    void register_service(rpc_server_base* s) {
+    void register_service(rpc_server_base<T>* s) {
         auto pl = s->proclist();
         for (auto p : pl) {
             if (p >= (int)sp_.size())
@@ -55,14 +56,14 @@ struct async_rpc_server : public rpc_handler {
         unique_.push_back(s);
     }
 
-    void handle_rpc(async_rpcc *c, parser& p) {
+    void handle_rpc(async_rpcc<T>* c, parser& p) {
         rpc_header *h = p.header<rpc_header>();
         auto s = sp_[h->proc()];
         mandatory_assert(s);
         s->dispatch(p, c, rpc::common::tstamp());
     }
 
-    void handle_client_failure(async_rpcc* c) {
+    void handle_client_failure(async_rpcc<T>* c) {
         for (auto s: unique_)
             s->client_failure(c);
         for (auto it = clients_.begin(); it != clients_.end(); ++it)
@@ -72,22 +73,23 @@ struct async_rpc_server : public rpc_handler {
             }
         assert(0 && "connection not found? Impossible!");
     }
-    void handle_post_failure(async_rpcc* c) {
+    void handle_post_failure(async_rpcc<T>* c) {
 	delete c;
     }
-    std::list<async_rpcc*>& all_rpcc() {
+    std::list<async_rpcc<T>*>& all_rpcc() {
         return clients_;
     }
 
   private:
-    std::list<async_rpcc*> clients_;
-    std::vector<rpc_server_base*> unique_; // service provider
-    std::vector<rpc_server_base*> sp_; // service provider
+    std::list<async_rpcc<T>*> clients_;
+    std::vector<rpc_server_base<T>*> unique_; // service provider
+    std::vector<rpc_server_base<T>*> sp_; // service provider
     proc_counters<app_param::nproc, true> opcount_;
     int listener_;
     ev::io listener_ev_;
 };
 
+template <typename T>
 struct threaded_rpc_server {
     threaded_rpc_server(int port) {
         listener_ = rpc::common::sock_helper::listen(port, 100);
@@ -112,7 +114,7 @@ struct threaded_rpc_server {
         return opcount_;
     }
 
-    void register_service(rpc_server_base* s) {
+    void register_service(rpc_server_base<T>* s) {
         auto pl = s->proclist();
         for (auto p : pl) {
             if (p >= (int)sp_.size())
@@ -123,7 +125,7 @@ struct threaded_rpc_server {
     }
 
     void process_client(int fd) {
-        fdstream sm(fd);
+        fdstream<T> sm(fd);
         rpc_header h;
         std::string body;
         while (true) {
@@ -139,7 +141,7 @@ struct threaded_rpc_server {
     }
 
   private:
-    std::vector<rpc_server_base*> sp_; // service provider
+    std::vector<rpc_server_base<T>*> sp_; // service provider
     proc_counters<app_param::nproc, true> opcount_;
     int listener_;
 };

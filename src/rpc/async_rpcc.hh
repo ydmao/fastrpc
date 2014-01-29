@@ -4,16 +4,19 @@
 #include "async_transport.hh"
 #include "rpc_common/sock_helper.hh"
 #include "rpc_common/util.hh"
+#include "rpc_common/compiler.hh"
 #include "gcrequest.hh"
 
 namespace rpc {
 
+template <typename T>
 struct async_rpcc;
 
+template <typename T>
 struct rpc_handler {
-    virtual void handle_rpc(async_rpcc *c, parser& p) = 0;
-    virtual void handle_client_failure(async_rpcc *c) = 0;
-    virtual void handle_post_failure(async_rpcc *c) = 0;
+    virtual void handle_rpc(async_rpcc<T> *c, parser& p) = 0;
+    virtual void handle_client_failure(async_rpcc<T> *c) = 0;
+    virtual void handle_post_failure(async_rpcc<T> *c) = 0;
 };
 
 struct tcp_provider {
@@ -44,10 +47,11 @@ struct onetime_tcpp : public tcp_provider {
     int fd_;
 };
 
-class async_rpcc : public transport_handler {
+template <typename T>
+class async_rpcc : public transport_handler<T> {
   public:
     async_rpcc(tcp_provider* tcpp,
-	       rpc_handler* rh, int cid, bool force_connected,
+	       rpc_handler<T>* rh, int cid, bool force_connected,
 	       proc_counters<app_param::nproc, true> *counts = 0);
 
     virtual ~async_rpcc();
@@ -56,7 +60,7 @@ class async_rpcc : public transport_handler {
 	int fd = tcpp_->connect();
         if (fd < 0)
             return false;
-        c_ = new async_buffered_transport(fd, this);
+        c_ = new async_buffered_transport<T>(fd, this);
         return true;
     }
     inline bool connected() const {
@@ -72,8 +76,8 @@ class async_rpcc : public transport_handler {
 	c_->shutdown();
     }
 
-    void buffered_read(async_buffered_transport *c, uint8_t *buf, uint32_t len);
-    void handle_error(async_buffered_transport *c, int the_errno);
+    void buffered_read(async_buffered_transport<T> *c, uint8_t *buf, uint32_t len);
+    void handle_error(async_buffered_transport<T> *c, int the_errno);
 
     // write reply. Connection may have error
     template <typename M>
@@ -87,11 +91,11 @@ class async_rpcc : public transport_handler {
 
   private:
     tcp_provider* tcpp_;
-    async_buffered_transport* c_;
+    async_buffered_transport<T>* c_;
     gcrequest_base **waiting_;
     unsigned waiting_capmask_;
     uint32_t seq_;
-    rpc_handler* rh_;
+    rpc_handler<T>* rh_;
     int noutstanding_;
     proc_counters<app_param::nproc, true> *counts_;
     int cid_;
@@ -103,8 +107,9 @@ class async_rpcc : public transport_handler {
     inline void write_request(uint32_t proc, uint32_t seq, M& message);
 };
 
+template <typename T>
 template <uint32_t PROC>
-inline void async_rpcc::buffered_call(gcrequest_iface<PROC> *q) {
+void async_rpcc<T>::buffered_call(gcrequest_iface<PROC> *q) {
     if (!connected()) {
 	q->process_connection_error();
 	return;
@@ -117,8 +122,9 @@ inline void async_rpcc::buffered_call(gcrequest_iface<PROC> *q) {
     waiting_[seq_ & waiting_capmask_] = q;
 }
 
+template <typename T>
 template <typename M>
-inline void async_rpcc::write_request(uint32_t proc, uint32_t seq, M& message) {
+inline void async_rpcc<T>::write_request(uint32_t proc, uint32_t seq, M& message) {
     check_unaligned_access();
     // write_request doesn't need to handle connection failure
     // the call method won't call write_request if not connected
@@ -136,8 +142,9 @@ inline void async_rpcc::write_request(uint32_t proc, uint32_t seq, M& message) {
 	counts_->add(proc, count_sent_request, sizeof(rpc_header) + req_sz);
 }
 
+template <typename T>
 template <typename M>
-inline void async_rpcc::write_reply(uint32_t proc, uint32_t seq, M& message, uint64_t latency) {
+void async_rpcc<T>::write_reply(uint32_t proc, uint32_t seq, M& message, uint64_t latency) {
     check_unaligned_access();
     --noutstanding_;
     // write_reply need to handle connection failure because the caller
@@ -157,5 +164,91 @@ inline void async_rpcc::write_reply(uint32_t proc, uint32_t seq, M& message, uin
 	counts_->add_latency(proc, latency);
     }
 }
+
+template <typename T>
+async_rpcc<T>::async_rpcc(tcp_provider* tcpp, 
+		       rpc_handler<T>* rh, int cid, bool force_connected,
+		       proc_counters<app_param::nproc, true> *counts)
+    : tcpp_(tcpp), c_(NULL), rh_(rh), 
+      waiting_(new gcrequest_base *[1024]), waiting_capmask_(1023), 
+      seq_(random() / 2), noutstanding_(0), counts_(counts), cid_(cid),
+      caller_arg_() {
+    bzero(waiting_, sizeof(gcrequest_base *) * 1024);
+    if (force_connected)
+	mandatory_assert(connect());
+}
+
+template <typename T>
+async_rpcc<T>::~async_rpcc() {
+    mandatory_assert(!noutstanding_);
+    delete[] waiting_;
+    delete tcpp_;
+}
+
+template <typename T>
+void async_rpcc<T>::buffered_read(async_buffered_transport<T> *, uint8_t *buf, uint32_t len) {
+    parser p;
+    while (p.parse<rpc_header>(buf, len, c_)) {
+	rpc_header *rhdr = p.header<rpc_header>();
+        if (!rhdr->request()) {
+            // Find the rpc request with sequence number @reply_hdr_.seq
+	    gcrequest_base *q = waiting_[rhdr->seq_ & waiting_capmask_];
+            mandatory_assert(q && q->seq_ == rhdr->seq_ && "RPC reply but no waiting call");
+	    waiting_[rhdr->seq_ & waiting_capmask_] = 0;
+	    --noutstanding_;
+	    gcrequest_base::last_server_latency_ = rhdr->latency();
+	    // update counts_ before process_reply, which will delete itself
+	    if (counts_) {
+	        counts_->add(q->proc(), count_recv_reply,
+                             sizeof(rpc_header) + p.header<rpc_header>()->payload_length());
+		counts_->add_latency(q->proc(), rpc::common::tstamp() - q->start_at());
+	    }
+	    q->process_reply(p);
+        } else {
+            ++noutstanding_;
+            mandatory_assert(rh_);
+            rh_->handle_rpc(this, p);
+        }
+        p.reset();
+    }
+}
+
+template <typename T>
+void async_rpcc<T>::handle_error(async_buffered_transport<T> *c, int the_errno) {
+    mandatory_assert(c == c_);
+    c_ = NULL;
+    if (rh_)
+        rh_->handle_client_failure(this);
+    if (noutstanding_ != 0)
+	fprintf(stderr, "error: %d rpcs outstanding (%s)\n",
+		noutstanding_, strerror(the_errno));
+    unsigned ncap = waiting_capmask_ + 1;
+    for (int i = 0; i < ncap; ++i) {
+        gcrequest_base* q = waiting_[i];
+        if (q) {
+	    --noutstanding_;
+            q->process_connection_error();
+	}
+    }
+    delete c;
+    if (rh_)
+	rh_->handle_post_failure(this);
+}
+
+template <typename T>
+void async_rpcc<T>::expand_waiting() {
+    do {
+	unsigned ncapmask = waiting_capmask_ * 2 + 1;
+	gcrequest_base **nw = new gcrequest_base *[ncapmask + 1];
+	memset(nw, 0, sizeof(gcrequest_base *) * (ncapmask + 1));
+	for (unsigned i = 0; i <= waiting_capmask_; ++i)
+	    if (gcrequest_base *rr = waiting_[i])
+		nw[rr->seq_ & ncapmask] = rr;
+	delete[] waiting_;
+	waiting_ = nw;
+	waiting_capmask_ = ncapmask;
+    } while (waiting_[seq_ & waiting_capmask_]);
+}
+
 
 } // namespace rpc

@@ -3,13 +3,18 @@
 #include <errno.h>
 #include <unistd.h>
 
+template <typename T>
 struct fdstream {
-    fdstream(int fd) : fd_(fd) {
+    fdstream(int fd) {
+        tp_ = T::make_sync(fd);
+    }
+    ~fdstream() {
+	delete tp_;
     }
     bool read(char *buf, int n) const {
         int wanted = n;
         while(wanted) {
-            int cc = ::read(fd_, buf, wanted);
+            int cc = tp_->read(buf, wanted);
             if(cc < 0) {
                 if (errno == EAGAIN || errno == EWOULDBLOCK)
                     continue;
@@ -25,7 +30,7 @@ struct fdstream {
     bool write(const char* buf, int n) const {
         int rest = n;
         while(rest) {
-            int cc = ::write(fd_, buf, rest);
+            int cc = tp_->write(buf, rest);
             if(cc < 0) {
                 if (errno == EAGAIN || errno == EWOULDBLOCK)
                     continue;
@@ -39,6 +44,6 @@ struct fdstream {
         return true;
     }
   private:
-    int fd_;
+    typename T::sync_transport* tp_;
 };
 

@@ -13,33 +13,35 @@ namespace rpc {
  *     the outstanding requests will be called to complete with its eno
  *     set to RPCERR.
  */
-class async_batched_rpcc : public rpc_handler, public async_rpcc {
+template <typename T>
+class async_batched_rpcc : public rpc_handler<T>, public async_rpcc<T> {
   public:
     async_batched_rpcc(const char* rmt, int rmtport, int w, int cid = 0,
 		       const char* local = "0.0.0.0", bool force_connected = true)
-	: async_rpcc(new multi_tcpp(rmt, local, rmtport), this, cid, force_connected, NULL), 
+	: async_rpcc<T>(new multi_tcpp(rmt, local, rmtport), this, cid, force_connected, NULL), 
           loop_(nn_loop::get_tls_loop()), w_(w) {
     }
     ~async_batched_rpcc() {
     }
+
     bool drain() {
         mandatory_assert(loop_->enter() == 1,
                          "Don't call drain within a libev_loop!");
-        bool work_done = noutstanding();
-        while (noutstanding())
+        bool work_done = this->noutstanding();
+        while (this->noutstanding())
             loop_->run_once();
         loop_->leave();
         return work_done;
     }
-    void handle_rpc(async_rpcc*, parser&) {
+    void handle_rpc(async_rpcc<T>*, parser&) {
 	mandatory_assert(0 && "rpc client can't process rpc requests");
     }
     // called before outstanding requests are completed with error
-    void handle_client_failure(async_rpcc* c) {
-	mandatory_assert(c == static_cast<async_rpcc*>(this));
+    void handle_client_failure(async_rpcc<T>* c) {
+	mandatory_assert(c == static_cast<async_rpcc<T>*>(this));
     }
-    void handle_post_failure(async_rpcc* c) {
-	mandatory_assert(c == static_cast<async_rpcc*>(this));
+    void handle_post_failure(async_rpcc<T>* c) {
+	mandatory_assert(c == static_cast<async_rpcc<T>*>(this));
     }
     template <uint32_t PROC>
     inline void call(gcrequest_iface<PROC> *q) {
@@ -50,12 +52,12 @@ class async_batched_rpcc : public rpc_handler, public async_rpcc {
   protected:
     void winctrl() {
 	assert(w_ > 0);
-	if (!connected())
+	if (!this->connected())
 	    return;
-        if (w_ == 1 || noutstanding() % (w_/2) == 0)
-            flush();
+        if (w_ == 1 || this->noutstanding() % (w_/2) == 0)
+            this->flush();
         if (loop_->enter() == 1) {
-            while (noutstanding() >= w_)
+            while (this->noutstanding() >= w_)
                 loop_->run_once();
         }
         loop_->leave();
