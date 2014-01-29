@@ -46,12 +46,6 @@ class async_batched_rpcc : public rpc_handler, public async_rpcc {
 	this->buffered_call(q);
 	winctrl();
     }
-    template <uint32_t PROC, typename MAKEREQ, typename F>
-    inline void call(F cb) {
-	auto g = new rpc::gcrequest<PROC>(cb);
-	MAKEREQ(g->req());
-	call(g);
-    }
 
   protected:
     void winctrl() {
