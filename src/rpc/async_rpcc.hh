@@ -56,7 +56,7 @@ class async_rpcc : public transport_handler {
 	int fd = tcpp_->connect();
         if (fd < 0)
             return false;
-        c_ = new async_transport(fd, this);
+        c_ = new async_buffered_transport(fd, this);
         return true;
     }
     inline bool connected() const {
@@ -72,8 +72,8 @@ class async_rpcc : public transport_handler {
 	c_->shutdown();
     }
 
-    void buffered_read(async_transport *c, uint8_t *buf, uint32_t len);
-    void handle_error(async_transport *c, int the_errno);
+    void buffered_read(async_buffered_transport *c, uint8_t *buf, uint32_t len);
+    void handle_error(async_buffered_transport *c, int the_errno);
 
     // write reply. Connection may have error
     template <typename M>
@@ -87,7 +87,7 @@ class async_rpcc : public transport_handler {
 
   private:
     tcp_provider* tcpp_;
-    async_transport* c_;
+    async_buffered_transport* c_;
     gcrequest_base **waiting_;
     unsigned waiting_capmask_;
     uint32_t seq_;
