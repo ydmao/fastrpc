@@ -28,13 +28,13 @@ struct nop_lock {
     void unlock() {}
 };
 
-template <typename T>
-struct buffered_tcpconn : public T {
-    buffered_tcpconn(int fd) 
+template <typename BASE>
+struct buffered_sync_transport : public BASE {
+    buffered_sync_transport(int fd) 
 	: fd_(fd), in_(fd, 65536), out_(fd, 65536) {
 	assert(fd_ >= 0);
     }
-    ~buffered_tcpconn() {
+    ~buffered_sync_transport() {
 	close(fd_);
     }
     bool safe_flush() {
@@ -50,8 +50,8 @@ struct buffered_tcpconn : public T {
 	flush();
 	::shutdown(fd_, SHUT_RDWR);
     }
-    kvin& in() {
-	return in_;
+    bool read_hard(void* buffer, size_t len) {
+	return in_.read((char*)buffer, len);
     }
     template <typename M>
     bool read_reply(rpc::rpc_header& h, M& m) {
@@ -83,17 +83,18 @@ struct buffered_tcpconn : public T {
     kvout out_;
 };
 
-struct buffered_tcpconn_client : public spinlock {
-    buffered_tcpconn_client() : buffered_tcpconn_client("", 0) {
+template <typename T>
+struct sync_client : public spinlock {
+    sync_client() : sync_client("", 0) {
     }
-    buffered_tcpconn_client(const std::string& h, int port) 
+    sync_client(const std::string& h, int port) 
         : h_(h), port_(port), conn_(NULL), cid_(0) {
     }
-    ~buffered_tcpconn_client() {
+    ~sync_client() {
         disconnect();
     }
-    explicit buffered_tcpconn_client(const buffered_tcpconn_client&) = delete;
-    void operator=(const buffered_tcpconn_client&) = delete;
+    explicit sync_client(const sync_client&) = delete;
+    void operator=(const sync_client&) = delete;
     void init(const std::string& h, int port, const std::string& localhost, int localport) {
         h_ = h;
         port_ = port;
@@ -106,7 +107,7 @@ struct buffered_tcpconn_client : public spinlock {
             if (fd < 0)
                 return false;
             rpc::common::sock_helper::make_nodelay(fd);
-	    conn_ = new buffered_tcpconn<nop_lock>(fd);
+	    conn_ = new T(fd);
         }
         return true;
     }
@@ -150,7 +151,7 @@ struct buffered_tcpconn_client : public spinlock {
     int port_;
     std::string localhost_;
     int localport_;
-    buffered_tcpconn<nop_lock>* conn_;
+    T* conn_;
     int cid_;
 };
 }
