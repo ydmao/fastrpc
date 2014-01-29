@@ -3,7 +3,9 @@
 #include <mutex>
 #include <sys/socket.h>
 #include <atomic>
+#include <memory>
 #include "rpc_util/kvio.h"
+#include "rpc_common/sock_helper.hh"
 
 namespace rpc {
 
@@ -62,6 +64,11 @@ struct buffered_tcpconn : public spinlock_object, public std::enable_shared_from
 	    flush();
 	unlock();
     }
+    template <typename M, typename REPLY>
+    bool sync_call(int cid, uint32_t seq, uint32_t proc, const M& req, REPLY& r) {
+	return rpc::sync_call(&out_, &in_, cid, seq, proc, req, r);
+    }
+
     T context_;
 
   private:
@@ -119,6 +126,11 @@ struct buffered_tcpconn_client : public spinlock_object {
     bool send_request(uint32_t proc, uint32_t seq, const M& m) {
 	assert(connected());
 	return conn_->send_request(proc, seq, cid_, m);
+    }
+    template <typename M, typename REPLY>
+    bool sync_call(uint32_t seq, uint32_t proc, const M& req, REPLY& r) {
+	assert(connected());
+	return conn_->sync_call(cid_, seq, proc, req, r);
     }
     bool flush() {
 	assert(connected());
