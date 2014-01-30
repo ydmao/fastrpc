@@ -2,7 +2,6 @@
 
 #include <vector>
 #include <string>
-#include "rpc_common/fdstream.hh"
 #include "sync_rpc_transport.hh"
 
 namespace rpc {

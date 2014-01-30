@@ -7,7 +7,6 @@
 #include "libev_loop.hh"
 #include "rpc_common/sock_helper.hh"
 #include "rpc_common/util.hh"
-#include "rpc_common/fdstream.hh"
 #include "rpc/rpc_server_base.hh"
 #include "rpc/async_rpcc.hh"
 
