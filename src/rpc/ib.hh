@@ -657,7 +657,7 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
 
 struct infb_poll_conn : public infb_conn {
     infb_poll_conn(int fd) 
-        : infb_conn(INFB_CONN_INT, infb_provider::default_instance()) {
+        : infb_conn(INFB_CONN_POLL, infb_provider::default_instance()) {
         assert(create() == 0);
         assert(connect(fd) == 0);
     }
