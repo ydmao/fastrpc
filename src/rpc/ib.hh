@@ -288,6 +288,10 @@ struct infb_conn {
     }
 
     ssize_t read(void* buf, size_t len) {
+	if (closed()) {
+	    errno = EIO;
+	    return -1;
+	}
 	assert(len > 0);
 	if (!readable()) {
 	    if (!blocking()) {
@@ -316,6 +320,10 @@ struct infb_conn {
     }
 
     ssize_t write(const void* buf, size_t len) {
+	if (closed()) {
+	    errno = EIO;
+	    return -1;
+	}
 	assert(len > 0);
 	if (!writable(len)) {
 	    if (!blocking()) {
@@ -422,6 +430,9 @@ struct infb_conn {
     }
 
   protected:
+    bool closed() const {
+	return fd_ < 0;
+    }
     ibv_cq* wait_channel(ibv_comp_channel* chan) {
         ibv_cq* cq;
 	void* ctx;
@@ -587,19 +598,18 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
         assert(connect(fd) == 0);
     }
     ~infb_async_conn() {
+	real_close();
+	nn_loop::get_tls_loop()->remove_edge_triggered(this);
 	if (sw_) {
-	    nn_loop::get_tls_loop()->remove_edge_triggered(this);
 	    sw_->stop();
 	    delete sw_;
 	}
     }
     bool drain() {
         assert(!blocking() && sw_);
-        if (unlikely(flags_ == 0))
-            return false;
 	bool dispatched = false;
         dbg("drain: dispatch before querying for CQE\n");
-        while (true) {
+        while (likely(!closed())) {
             int flags = readable() ? ev::READ : 0;
             flags |= writable() ? ev::WRITE : 0;
             int interest = flags & flags_;
@@ -608,6 +618,10 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
 	    dispatched = true;
 	    cb_(this, interest);
         }
+	if (unlikely(closed())) {
+	    cb_(this, ev::READ);
+	    return true;
+	}
         return dispatched;
     }
 
@@ -629,12 +643,18 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
 	sw_->set<infb_async_conn, &infb_async_conn::poll_channel>(this);
 	rpc::common::sock_helper::make_nonblock(schan_->fd);
 	sw_->set(schan_->fd, ev::READ);
-
 	hard_select(flags);
+
+	obw_.set(loop->ev_loop());
+	obw_.set<infb_async_conn, &infb_async_conn::close>(this);
+	obw_.start(fd_, ev::READ);
+    }
+    void close(ev::io&, int) {
+	real_close();
     }
     void eselect(int flags) {
 	assert(!blocking());
-	if (unlikely(flags_ == flags))
+	if (unlikely(flags_ == flags || fd_ < 0))
 	    return;
 	hard_select(flags);
     }
@@ -643,6 +663,18 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
     }
 
   private:
+    void real_close() {
+	printf("real_close: %d\n", fd_);
+	if (fd_ < 0)
+	    return;
+	// stop sw_
+	hard_select(0);
+
+	// stop obw_
+	obw_.stop();
+	::close(fd_);
+	fd_ = -1;
+    }
     void hard_select(int flags) {
 	if (flags)
 	    sw_->start(schan_->fd, flags);
@@ -653,6 +685,7 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
     ev::io* sw_; // watcher on the channel (schan_ == rchan_)
     callback_type cb_;
     int flags_;
+    ev::io obw_; // out-of-band fd watcher
 };
 
 struct infb_poll_conn : public infb_conn {
