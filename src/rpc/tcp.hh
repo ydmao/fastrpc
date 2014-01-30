@@ -33,8 +33,8 @@ struct async_tcp : public socket_wrapper {
     }
     typedef std::function<void(async_tcp*, int)> event_handler_type;
 
-    void register_loop(ev::loop_ref loop, event_handler_type cb, int flags) {
-        ev_.set(loop);
+    void register_callback(event_handler_type cb, int flags) {
+        ev_.set(nn_loop::get_tls_loop()->ev_loop());
         ev_.set<async_tcp, &async_tcp::event_handler>(this);
 	cb_ = cb;
 	assert(flags);
@@ -65,7 +65,7 @@ struct async_tcp : public socket_wrapper {
     int ev_flags_;
 };
 
-struct tcp_transport {
+struct tcpnet {
     typedef socket_wrapper sync_transport;
     typedef async_tcp async_transport;
 };

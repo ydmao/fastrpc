@@ -121,8 +121,7 @@ async_buffered_transport<T>::async_buffered_transport(int fd, transport_handler<
     tp_ = new transport(fd);
     using std::placeholders::_1;
     using std::placeholders::_2;
-    tp_->register_loop(
-	    nn_loop::get_loop()->ev_loop(),
+    tp_->register_callback(
 	    std::bind(&async_buffered_transport<T>::event_handler, this, _1, _2),
 	    ev::READ);
 }

@@ -4,8 +4,17 @@
 #include "rpc_common/spinlock.hh"
 #include <ev++.h>
 #include <pthread.h>
+#include <list>
+#include <assert.h>
 
 namespace rpc {
+
+// infiniband channel is edge trigger, not level trigger.
+// For such channels, loop_once should first drain events
+// on it before selecting.
+struct edge_triggered_channel {
+    virtual void drain() = 0;
+};
 
 /** @brief Non-Nested Loop. The nn_loop abstraction ensures that
      there is a one-to-one mapping between an ev::loop_ref and a pthread.  This
@@ -59,6 +68,17 @@ struct nn_loop {
     static nn_loop *get_loop(nn_loop *loop = 0) {
 	return loop ? loop : get_tls_loop();
     }
+    void add_edge_triggered(edge_triggered_channel* chan) {
+	chan_.push_back(chan);
+    }
+    void remove_edge_triggered(edge_triggered_channel* chan) {
+	for (auto it = chan_.begin(); it != chan_.end(); ++it)
+	    if (*it == chan) {
+	        chan_.erase(it);
+		return;
+	    }
+	assert(0 && "unknown edge-triggered channel");
+    }
     int enter() {
         return ++ nest_;
     }
@@ -67,12 +87,21 @@ struct nn_loop {
     }
     void run_once() {
         mandatory_assert(nest_ == 1 && pthread_self() == tid_);
+	for (auto it = chan_.begin(); it != chan_.end(); ) {
+	    auto next = it;
+	    next ++;
+	    (*it)->drain(); // may remove itself
+	    it = next;
+        }
         loop_.run(ev::ONCE);
     }
+    // Program should not call run because we need to call
+    // run_once to drain edge-triggered channels
+    /*
     void run() {
         mandatory_assert(nest_ == 1 && pthread_self() == tid_);
         loop_.run();
-    }
+    }*/
     ev::loop_ref ev_loop() const {
 	return loop_;
     }
@@ -100,6 +129,8 @@ struct nn_loop {
     pthread_t tid_;
     int nest_;
     ev::loop_ref loop_;
+
+    std::list<edge_triggered_channel*> chan_;
 };
 
 }

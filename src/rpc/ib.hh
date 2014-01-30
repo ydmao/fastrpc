@@ -16,6 +16,7 @@
 #include <mutex>
 #include <ev++.h>
 
+#include "rpc/libev_loop.hh"
 #include "rpc_common/compiler.hh"
 #include "rpc_common/sock_helper.hh"
 #include "compiler/str.hh"
@@ -180,6 +181,12 @@ struct infb_conn {
 	return type_ != INFB_CONN_ASYNC;
     }
 
+    void shutdown() {
+	// XXX: how?
+	if (fd_ >= 0)
+	    ::shutdown(fd_, SHUT_RDWR);
+    }
+
     int create() {
 	static const int max_inline_data = 400;
 	// get port attributes
@@ -276,6 +283,8 @@ struct infb_conn {
 	    CHECK(ibv_destroy_comp_channel(rchan_) == 0);
 	if (schan_ != rchan_)
 	    CHECK(ibv_destroy_comp_channel(schan_) == 0);
+	if (fd_ >= 0)
+	    close(fd_);
     }
 
     ssize_t read(void* buf, size_t len) {
@@ -571,7 +580,7 @@ struct infb_conn {
     int fd_;
 };
 
-struct infb_async_conn : public infb_conn {
+struct infb_async_conn : public infb_conn, public edge_triggered_channel {
     infb_async_conn(int fd)
         : infb_conn(INFB_CONN_ASYNC, infb_provider::default_instance()), flags_(0), sw_(NULL) {
         assert(create() == 0);
@@ -579,6 +588,7 @@ struct infb_async_conn : public infb_conn {
     }
     ~infb_async_conn() {
 	if (sw_) {
+	    nn_loop::get_tls_loop()->remove_edge_triggered(this);
 	    sw_->stop();
 	    delete sw_;
 	}
@@ -607,10 +617,12 @@ struct infb_async_conn : public infb_conn {
     }
 
     typedef std::function<void(infb_async_conn*,int)> callback_type;
-    void register_loop(ev::loop_ref loop, callback_type cb, int flags) {
+    void register_callback(callback_type cb, int flags) {
+	nn_loop* loop = nn_loop::get_tls_loop();
+	loop->add_edge_triggered(this);
 	assert(!blocking() && schan_ == rchan_);
 	cb_ = cb;
-	sw_ = new ev::io(loop);
+	sw_ = new ev::io(loop->ev_loop());
 	sw_->set<infb_async_conn, &infb_async_conn::poll_channel>(this);
 	rpc::common::sock_helper::make_nonblock(schan_->fd);
 	sw_->set(schan_->fd, ev::READ);
@@ -655,7 +667,7 @@ struct infb_int_conn : public infb_conn {
         assert(connect(fd) == 0);
     }
 };
-struct ib_transport {
+struct ibnet {
     typedef infb_int_conn sync_transport;
     typedef infb_async_conn async_transport;
 };
