@@ -41,12 +41,6 @@ struct buffered_sync_transport : public BASE {
     ~buffered_sync_transport() {
 	delete tp_;
     }
-    bool safe_flush() {
-	this->lock();
-	bool ok = flush();
-	this->unlock();
-	return ok;
-    }
     bool flush() {
 	return out_.flush();
     }
@@ -54,37 +48,11 @@ struct buffered_sync_transport : public BASE {
 	flush();
 	tp_->shutdown();
     }
-    bool read_hard(void* buffer, size_t len) {
-	return in_.read((char*)buffer, len);
+    rpc_istream_base* in() {
+	return &in_;
     }
-    template <typename M>
-    bool read_reply(rpc::rpc_header& h, M& m) {
-	return rpc::read_reply(&in_, m, h);
-    }
-    template <typename PROC, typename M>
-    bool send_request(PROC proc, uint32_t seq, uint32_t cid, const M& m, bool doflush) {
-	bool ok = rpc::send_request(&out_, proc, seq, cid, m);
-	if (ok && doflush)
-	    flush();
-	return ok;
-    }
-    template <typename M>
-    bool send_reply(uint32_t mproc, uint32_t seq, uint32_t cid, const M& m, bool doflush) {
-	bool ok = rpc::send_reply(&out_, mproc, seq, cid, m);
-	if (ok && doflush)
-	    flush();
-	return ok;
-    }
-
-    template <typename REPLY>
-    void safe_send_reply(const REPLY& reply, const rpc::rpc_header& h, bool doflush) {
-	this->lock();
-	send_reply(h.mproc(), h.seq_, h.cid_, reply, doflush);
-	this->unlock();
-    }
-    template <typename PROC, typename M, typename REPLY>
-    bool sync_call(int cid, uint32_t seq, PROC proc, const M& req, REPLY& r) {
-	return rpc::sync_call(&out_, &in_, cid, seq, proc, req, r);
+    rpc_ostream_base* out() {
+	return &out_;
     }
 
   private:
@@ -134,25 +102,51 @@ struct sync_rpc_transport : public spinlock {
 	if (conn_ != NULL)
 	    conn_->shutdown();
     }
+    bool hard_read(void* buffer, size_t len) {
+	assert(connected());
+	return conn_->in()->read((char*)buffer, len);
+    }
+    bool safe_flush() {
+	this->lock();
+	bool ok = flush();
+	this->unlock();
+	return ok;
+    }
+
+    template <typename REPLY>
+    void safe_send_reply(const REPLY& reply, const rpc::rpc_header& h, bool doflush) {
+	this->lock();
+	assert(h.cid_ == cid_);
+	bool ok = write_reply(h.mproc(), h.seq_, reply, 0);
+	if (ok && doflush)
+	    flush();
+	this->unlock();
+    }
     template <typename M>
     bool read_reply(rpc::rpc_header& h, M& m) {
 	assert(connected());
-	return conn_->read_reply(h, m);
+	return rpc::read_reply(conn_->in(), m, h);
     }
     template <typename PROC, typename M>
     bool send_request(PROC proc, uint32_t seq, const M& m, bool doflush) {
 	assert(connected());
-	return conn_->send_request(proc, seq, cid_, m, doflush);
+	bool ok = rpc::send_request(conn_->out(), proc, seq, cid_, m);
+	if (ok && doflush)
+	    conn_->flush();
+	return ok;
     }
     template <typename PROC, typename REPLY>
-    bool write_reply(PROC proc, int seq, const REPLY& r, uint64_t /*latency*/) {
+    bool write_reply(PROC mproc, int seq, const REPLY& r, uint64_t /*latency*/) {
 	assert(connected());
-	return conn_->send_reply(proc, seq, cid_, r, false);
+	bool ok = rpc::send_reply(conn_->out(), mproc, seq, cid_, r);
+	if (ok && /*doflush*/false)
+	    flush();
+	return ok;
     }
     template <typename PROC, typename M, typename REPLY>
     bool sync_call(uint32_t seq, PROC proc, const M& req, REPLY& r) {
 	assert(connected());
-	return conn_->sync_call(cid_, seq, proc, req, r);
+	return rpc::sync_call(conn_->out(), conn_->in(), cid_, seq, proc, req, r);
     }
     bool flush() {
 	assert(connected());
