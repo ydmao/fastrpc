@@ -436,6 +436,20 @@ struct infb_conn {
 	return fd_ < 0;
     }
     ibv_cq* wait_channel(ibv_comp_channel* chan) {
+	if (unlikely(error_))
+	    return NULL;
+	if (blocking()) {
+	    // wait until readable
+	    fd_set rfds;
+            FD_ZERO(&rfds);
+            FD_SET(fd_, &rfds);
+	    FD_SET(chan->fd, &rfds);
+	    const int nfds = std::max(fd_, chan->fd) + 1;
+            select(nfds, &rfds, NULL, NULL, NULL);
+            if (unlikely(FD_ISSET(fd_, &rfds)))
+	        error_ = true;
+	    return NULL;
+	}
         ibv_cq* cq;
 	void* ctx;
 	if (ibv_get_cq_event(chan, &cq, &ctx)) {
@@ -465,13 +479,13 @@ struct infb_conn {
     template <typename F>
     int poll(ibv_cq* cq, F f) {
 	ibv_wc wc[cq->cqe];
-	int ne;
+	int ne = 0;
 	int n = 0;
-	do {
+	while (blocking() && ne < 1 && likely(!error_)) {
 	    CHECK((ne = ibv_poll_cq(cq, cq->cqe, wc)) >= 0);
-	    if (++n % 1000 == 0)
+	    if (++n % 10000 == 0)
 		check_error();
-	} while (blocking() && ne < 1 && likely(!error_));
+	}
 	if (unlikely(error_))
 	    return -1;
 	for (int i = 0; i < ne; ++i) {
@@ -485,7 +499,7 @@ struct infb_conn {
     }
     int real_read() {
 	if (type_ == INFB_CONN_INT)
-	    assert(wait_channel(rchan_) == rcq_);
+	    wait_channel(rchan_);
 	auto f = [&](const ibv_wc& wc) {
 	   	assert(recv_request(wc.wr_id));
 		pending_read_.push(refcomp::str((const char*)wc.wr_id, wc.byte_len));
@@ -494,7 +508,7 @@ struct infb_conn {
     }
     int real_write() {
 	if (type_ == INFB_CONN_INT)
-	    assert(wait_channel(schan_) == scq_);
+	    wait_channel(schan_);
 	auto f = [&](const ibv_wc& wc) {
 	        if (non_inline_send_request(wc.wr_id))
 	            wbuf_extend(wc.byte_len);
