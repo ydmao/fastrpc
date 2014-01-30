@@ -26,13 +26,8 @@ struct spinlock {
     std::atomic_flag lock_;
 };
 
-struct nop_lock {
-    void lock() {}
-    void unlock() {}
-};
-
-template <typename BASE, typename T>
-struct buffered_sync_transport : public BASE {
+template <typename T>
+struct buffered_sync_transport {
     buffered_sync_transport(int fd) 
 	: tp_(new T(fd)), in_(tp_, 65536), out_(tp_, 65536) {
 	assert(tp_ != NULL);
