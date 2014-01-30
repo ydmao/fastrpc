@@ -600,6 +600,7 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
 	if (sw_) {
 	    sw_->stop();
 	    delete sw_;
+	    sw_ = NULL;
 	}
     }
     bool drain() {
