@@ -15,6 +15,7 @@
 #include <stdarg.h>
 #include <mutex>
 #include <ev++.h>
+#include <atomic>
 
 #include "rpc/libev_loop.hh"
 #include "rpc_common/compiler.hh"
@@ -169,7 +170,7 @@ struct infb_async_conn;
 
 struct infb_conn {
     infb_conn(infb_conn_type type, infb_provider* p) 
-	: p_(p), type_(type), fd_(-1) {
+	: p_(p), type_(type), fd_(-1), error_(false) {
 	pd_ = NULL;
 	mr_ = NULL;
 	scq_ = rcq_ = NULL;
@@ -288,7 +289,7 @@ struct infb_conn {
     }
 
     ssize_t read(void* buf, size_t len) {
-	if (closed()) {
+	if (closed() || error_) {
 	    errno = EIO;
 	    return -1;
 	}
@@ -320,7 +321,7 @@ struct infb_conn {
     }
 
     ssize_t write(const void* buf, size_t len) {
-	if (closed()) {
+	if (closed() || error_) {
 	    errno = EIO;
 	    return -1;
 	}
@@ -340,15 +341,19 @@ struct infb_conn {
 	if (len <= max_inline_size_) {
 	    if (post_send_with_buffer((const char*)buf, len, IBV_SEND_SIGNALED | IBV_SEND_INLINE) == 0)
 	        return len;
-	    else
+	    else {
+		errno = EIO;
 		return -1;
+	    }
 	}
 	ssize_t r = 0;
 	while (r < len && wbuf_.length()) {
 	    size_t n = std::min(len - r, wbuf_.length());
 	    memcpy(wbuf_.s_, (const char*)buf + r, n);
-	    if (post_send_with_buffer(wbuf_.data(), n, IBV_SEND_SIGNALED) != 0)
+	    if (post_send_with_buffer(wbuf_.data(), n, IBV_SEND_SIGNALED) != 0) {
+		errno = EIO;
 		return -1;
+	    }
 	    wbuf_consume(n);
 	    r += n;
 	}
@@ -442,14 +447,33 @@ struct infb_conn {
 	CHECK(ibv_req_notify_cq(cq, 0) == 0);
 	return cq;
     }
+    bool check_error() {
+	if (error_)
+	    return true;
+        fd_set rfds;
+        FD_ZERO(&rfds);
+        FD_SET(fd_, &rfds);
+        struct timeval tv;
+        tv.tv_sec = 0;
+        tv.tv_usec = 0;
+        select(fd_ + 1, &rfds, NULL, NULL, &tv);
+        if(FD_ISSET(fd_, &rfds))
+	    error_ = true;
+	return error_;
+    }
 
     template <typename F>
     int poll(ibv_cq* cq, F f) {
 	ibv_wc wc[cq->cqe];
 	int ne;
+	int n = 0;
 	do {
 	    CHECK((ne = ibv_poll_cq(cq, cq->cqe, wc)) >= 0);
-	} while (blocking() && ne < 1);
+	    if (++n % 1000 == 0)
+		check_error();
+	} while (blocking() && ne < 1 && likely(!error_));
+	if (unlikely(error_))
+	    return -1;
 	for (int i = 0; i < ne; ++i) {
 	    if (wc[i].status != IBV_WC_SUCCESS) {
 		fprintf(stderr, "poll failed with status: %d\n", wc[i].status);
@@ -586,6 +610,7 @@ struct infb_conn {
     ibv_comp_channel* rchan_; // receive channel
 
     int fd_;
+    std::atomic<bool> error_; // used by synchronous infb_conn to detect error
 };
 
 struct infb_async_conn : public infb_conn, public edge_triggered_channel {
