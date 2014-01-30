@@ -26,7 +26,6 @@ struct socket_wrapper {
     int fd_;
 };
 
-
 // async_tcp
 struct async_tcp : public socket_wrapper {
     async_tcp(int fd) : socket_wrapper(fd), ev_flags_(0) {
@@ -69,17 +68,6 @@ struct async_tcp : public socket_wrapper {
 struct tcp_transport {
     typedef socket_wrapper sync_transport;
     typedef async_tcp async_transport;
-
-    static sync_transport* make_sync(int fd) {
-	assert(fd >= 0);
-	return new sync_transport(fd);
-    }
-    static async_transport* make_async(int fd) {
-	assert(fd >= 0);
-	return new async_transport(fd);
-    }
-    static void drain_async(async_transport*) {
-    }
 };
 
 }

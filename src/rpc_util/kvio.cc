@@ -92,7 +92,7 @@ kvin::reallyread()
 
 // read exactly n bytes.
 bool
-kvin::read(char *xbuf, int n)
+kvin::read(void* xbuf, size_t n)
 {
   int i = 0;
   while(i < n){
@@ -100,7 +100,7 @@ kvin::read(char *xbuf, int n)
       int cc = i1 - i0;
       if(cc > n - i)
         cc = n - i;
-      bcopy(buf + i0, xbuf + i, cc);
+      bcopy(buf + i0, (char*)xbuf + i, cc);
       i += cc;
       i0 += cc;
     } else {
@@ -225,7 +225,7 @@ kvout::get_fd() {
 }
 
 bool
-kvout::write(const void *xbuf, int xn)
+kvout::write(const void *xbuf, size_t xn)
 {
   if(n + xn > len)
     if(flush() == false)

@@ -6,7 +6,7 @@
 template <typename T>
 struct fdstream {
     fdstream(int fd) {
-        tp_ = T::make_sync(fd);
+        tp_ = new transport(fd);
     }
     ~fdstream() {
 	delete tp_;
@@ -44,6 +44,7 @@ struct fdstream {
         return true;
     }
   private:
-    typename T::sync_transport* tp_;
+    typedef typename T::sync_transport transport;
+    transport* tp_;
 };
 

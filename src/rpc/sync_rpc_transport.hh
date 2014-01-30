@@ -6,6 +6,7 @@
 #include <memory>
 #include "rpc_util/kvio.h"
 #include "rpc_common/sock_helper.hh"
+#include "rpc_util/buffered_rpc_stream.hh"
 
 namespace rpc {
 
@@ -28,14 +29,15 @@ struct nop_lock {
     void unlock() {}
 };
 
-template <typename BASE>
+template <typename BASE, typename T>
 struct buffered_sync_transport : public BASE {
     buffered_sync_transport(int fd) 
-	: fd_(fd), in_(fd, 65536), out_(fd, 65536) {
-	assert(fd_ >= 0);
+	: tp_(new T(fd)), in_(tp_, 65536), out_(tp_, 65536) {
+	assert(tp_ != NULL);
+	assert(fd >= 0);
     }
     ~buffered_sync_transport() {
-	close(fd_);
+	delete tp_;
     }
     bool safe_flush() {
 	this->lock();
@@ -48,7 +50,7 @@ struct buffered_sync_transport : public BASE {
     }
     void shutdown() {
 	flush();
-	::shutdown(fd_, SHUT_RDWR);
+	tp_->shutdown();
     }
     bool read_hard(void* buffer, size_t len) {
 	return in_.read((char*)buffer, len);
@@ -78,23 +80,23 @@ struct buffered_sync_transport : public BASE {
     }
 
   private:
-    int fd_;
-    kvin in_;
-    kvout out_;
+    T* tp_;
+    buffered_rpc_istream<T> in_;
+    buffered_rpc_ostream<T> out_;
 };
 
 template <typename T>
-struct sync_client : public spinlock {
-    sync_client() : sync_client("", 0) {
+struct sync_rpc_transport : public spinlock {
+    sync_rpc_transport() : sync_rpc_transport("", 0) {
     }
-    sync_client(const std::string& h, int port) 
+    sync_rpc_transport(const std::string& h, int port) 
         : h_(h), port_(port), conn_(NULL), cid_(0) {
     }
-    ~sync_client() {
+    ~sync_rpc_transport() {
         disconnect();
     }
-    explicit sync_client(const sync_client&) = delete;
-    void operator=(const sync_client&) = delete;
+    explicit sync_rpc_transport(const sync_rpc_transport&) = delete;
+    void operator=(const sync_rpc_transport&) = delete;
     void init(const std::string& h, int port, const std::string& localhost, int localport) {
         h_ = h;
         port_ = port;

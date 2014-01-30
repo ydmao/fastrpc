@@ -118,7 +118,7 @@ uint8_t *async_buffered_transport<T>::reserve(uint32_t size) {
 template <typename T>
 async_buffered_transport<T>::async_buffered_transport(int fd, transport_handler<T>* ioh)
     : in_(outbuf::make(1)), ioh_(ioh) {
-    tp_ = T::make_async(fd);
+    tp_ = new transport(fd);
     using std::placeholders::_1;
     using std::placeholders::_2;
     tp_->register_loop(
