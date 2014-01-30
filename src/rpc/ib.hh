@@ -419,9 +419,6 @@ struct infb_conn {
 	fd_ = fd;
 	return 0;
     }
-    bool read_cq(ibv_cq* cq) const {
-	return cq == rcq_;
-    }
     bool readable() const {
 	return !pending_read_.empty();
     }
