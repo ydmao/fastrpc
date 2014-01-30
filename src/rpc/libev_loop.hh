@@ -13,7 +13,7 @@ namespace rpc {
 // For such channels, loop_once should first drain events
 // on it before selecting.
 struct edge_triggered_channel {
-    virtual void drain() = 0;
+    virtual bool drain() = 0;
 };
 
 /** @brief Non-Nested Loop. The nn_loop abstraction ensures that
@@ -87,13 +87,16 @@ struct nn_loop {
     }
     void run_once() {
         mandatory_assert(nest_ == 1 && pthread_self() == tid_);
+	bool dispatched = false;
 	for (auto it = chan_.begin(); it != chan_.end(); ) {
 	    auto next = it;
 	    next ++;
-	    (*it)->drain(); // may remove itself
+	    if ((*it)->drain()) // may remove itself
+	        dispatched = true;
 	    it = next;
         }
-        loop_.run(ev::ONCE);
+	if (!dispatched)
+            loop_.run(ev::ONCE);
     }
     // Program should not call run because we need to call
     // run_once to drain edge-triggered channels

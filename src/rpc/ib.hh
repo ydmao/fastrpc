@@ -593,19 +593,22 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
 	    delete sw_;
 	}
     }
-    void drain() {
+    bool drain() {
         assert(!blocking() && sw_);
-        if (flags_ == 0)
-            return;
+        if (unlikely(flags_ == 0))
+            return false;
+	bool dispatched = false;
         dbg("drain: dispatch before querying for CQE\n");
         while (true) {
             int flags = readable() ? ev::READ : 0;
             flags |= writable() ? ev::WRITE : 0;
             int interest = flags & flags_;
-            if (!interest)
+            if (likely(!interest))
     	        break;
+	    dispatched = true;
 	    cb_(this, interest);
         }
+        return dispatched;
     }
 
     void poll_channel(ev::io& w, int) {
@@ -631,7 +634,7 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
     }
     void eselect(int flags) {
 	assert(!blocking());
-	if (flags_ == flags)
+	if (unlikely(flags_ == flags))
 	    return;
 	hard_select(flags);
     }
@@ -642,7 +645,7 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
   private:
     void hard_select(int flags) {
 	if (flags)
-	    sw_->start();
+	    sw_->start(schan_->fd, flags);
 	else
 	    sw_->stop();
 	flags_ = flags;
