@@ -174,7 +174,6 @@ struct infb_conn {
 	scq_ = rcq_ = NULL;
 	qp_ = NULL;
 	schan_ = rchan_ = NULL;
-	sw_ = NULL;
     }
 
     bool blocking() const {
@@ -259,7 +258,7 @@ struct infb_conn {
 	return 0;
     }
 
-    ~infb_conn() {
+    virtual ~infb_conn() {
 	printf("~infb_conn\n");
 	if (qp_)
 	    CHECK(ibv_destroy_qp(qp_) == 0);
@@ -277,10 +276,6 @@ struct infb_conn {
 	    CHECK(ibv_destroy_comp_channel(rchan_) == 0);
 	if (schan_ != rchan_)
 	    CHECK(ibv_destroy_comp_channel(schan_) == 0);
-	if (sw_) {
-	    sw_->stop();
-	    delete sw_;
-	}
     }
 
     ssize_t read(void* buf, size_t len) {
@@ -417,46 +412,7 @@ struct infb_conn {
 	return nw_ < scq_->cqe && ((len > 0 && len < max_inline_size_) || wbuf_.length());
     }
 
-    void drain();
-
-    void poll_channel(ev::io& w, int) {
-	ibv_cq* cq = wait_channel(schan_);
-	if (cq == scq_)
-	    real_write();
-	else
-	    real_read();
-    }
-
-    typedef std::function<void(infb_async_conn*,int)> callback_type;
-    void register_loop(ev::loop_ref loop, callback_type cb, int flags) {
-	assert(!blocking() && schan_ == rchan_);
-	cb_ = cb;
-	sw_ = new ev::io(loop);
-	sw_->set<infb_conn, &infb_conn::poll_channel>(this);
-	rpc::common::sock_helper::make_nonblock(schan_->fd);
-	sw_->set(schan_->fd, ev::READ);
-
-	hard_select(flags);
-    }
-    void eselect(int flags) {
-	assert(!blocking());
-	if (flags_ == flags)
-	    return;
-	hard_select(flags);
-    }
-    int ev_flags() const {
-	return flags_;
-    }
-
-  private:
-    void hard_select(int flags) {
-	if (flags)
-	    sw_->start();
-	else
-	    sw_->stop();
-	flags_ = flags;
-    }
-
+  protected:
     ibv_cq* wait_channel(ibv_comp_channel* chan) {
         ibv_cq* cq;
 	void* ctx;
@@ -612,19 +568,76 @@ struct infb_conn {
     ibv_comp_channel* schan_; // send channel
     ibv_comp_channel* rchan_; // receive channel
 
-    ev::io* sw_; // watcher on the channel (schan_ == rchan_)
-    callback_type cb_;
-    int flags_;
-
     int fd_;
 };
 
 struct infb_async_conn : public infb_conn {
     infb_async_conn(int fd)
-        : infb_conn(INFB_CONN_ASYNC, infb_provider::default_instance()) {
+        : infb_conn(INFB_CONN_ASYNC, infb_provider::default_instance()), flags_(0), sw_(NULL) {
         assert(create() == 0);
         assert(connect(fd) == 0);
     }
+    ~infb_async_conn() {
+	if (sw_) {
+	    sw_->stop();
+	    delete sw_;
+	}
+    }
+    void drain() {
+        assert(!blocking() && sw_);
+        if (flags_ == 0)
+            return;
+        dbg("drain: dispatch before querying for CQE\n");
+        while (true) {
+            int flags = readable() ? ev::READ : 0;
+            flags |= writable() ? ev::WRITE : 0;
+            int interest = flags & flags_;
+            if (!interest)
+    	        break;
+	    cb_(this, interest);
+        }
+    }
+
+    void poll_channel(ev::io& w, int) {
+	ibv_cq* cq = wait_channel(schan_);
+	if (cq == scq_)
+	    real_write();
+	else
+	    real_read();
+    }
+
+    typedef std::function<void(infb_async_conn*,int)> callback_type;
+    void register_loop(ev::loop_ref loop, callback_type cb, int flags) {
+	assert(!blocking() && schan_ == rchan_);
+	cb_ = cb;
+	sw_ = new ev::io(loop);
+	sw_->set<infb_async_conn, &infb_async_conn::poll_channel>(this);
+	rpc::common::sock_helper::make_nonblock(schan_->fd);
+	sw_->set(schan_->fd, ev::READ);
+
+	hard_select(flags);
+    }
+    void eselect(int flags) {
+	assert(!blocking());
+	if (flags_ == flags)
+	    return;
+	hard_select(flags);
+    }
+    int ev_flags() const {
+	return flags_;
+    }
+
+  private:
+    void hard_select(int flags) {
+	if (flags)
+	    sw_->start();
+	else
+	    sw_->stop();
+	flags_ = flags;
+    }
+    ev::io* sw_; // watcher on the channel (schan_ == rchan_)
+    callback_type cb_;
+    int flags_;
 };
 
 struct infb_poll_conn : public infb_conn {
@@ -680,21 +693,6 @@ inline infb_conn* infb_connect(const char* ip, int port, infb_conn_type type) {
     int fd = rpc::common::sock_helper::connect(ip, port);
     assert(fd >= 0);
     return infb_create(type, fd);
-}
-
-inline void infb_conn::drain() {
-    assert(!blocking() && sw_);
-    if (flags_ == 0)
-        return;
-    dbg("drain: dispatch before querying for CQE\n");
-    while (true) {
-        int flags = readable() ? ev::READ : 0;
-        flags |= writable() ? ev::WRITE : 0;
-        int interest = flags & flags_;
-        if (!interest)
-    	    break;
-	cb_(static_cast<infb_async_conn*>(this), interest);
-    }
 }
 
 }
