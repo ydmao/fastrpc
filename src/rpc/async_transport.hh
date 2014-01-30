@@ -128,8 +128,10 @@ async_buffered_transport<T>::async_buffered_transport(int fd, transport_handler<
 
 template <typename T>
 async_buffered_transport<T>::~async_buffered_transport() {
-    tp_->eselect(0);
-    delete tp_;
+    if (tp_) {
+        tp_->eselect(0);
+        delete tp_;
+    }
     outbuf::free(in_);
     while (!out_active_.empty()) {
 	outbuf* x = &(out_active_.front());
