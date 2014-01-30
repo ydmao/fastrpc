@@ -7,6 +7,8 @@
 #include <assert.h>
 #include "rpc_stream_base.hh"
 
+namespace rpc {
+
 template <typename ISM>
 struct buffered_rpc_istream : public rpc_istream_base {
     buffered_rpc_istream(ISM* ism, int xlen) : ism_(ism) {
@@ -111,3 +113,5 @@ struct buffered_rpc_ostream : public rpc_ostream_base {
         return true;
     }
 };
+
+}

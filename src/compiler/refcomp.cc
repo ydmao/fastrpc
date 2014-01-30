@@ -327,7 +327,7 @@ bool nbcg::Generate(const gp::FileDescriptor* file, const std::string& parameter
         << "#include <iostream>\n"
         << "#include <assert.h>\n"
         << "#include <vector>\n"
-        << "#include \"compiler/stream_parser.hh\"\n"
+        << "#include \"rpc_util/string_rpc_stream.hh\"\n"
         << "\n";
 
     for (int i = 0; i < file->service_count(); ++i) {
@@ -461,15 +461,14 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
         << "    }\n";
 
     // SerializeToArray
-    xx_ << "    bool SerializeToArray(uint8_t* s, size_t) const {\n"
-        << "        refcomp::simple_ostream so(s);\n"
+    xx_ << "    bool SerializeToArray(uint8_t* s, size_t len) const {\n"
+        << "        rpc::string_rpc_ostream so(s, len);\n"
         << "        return SerializeToStream(so);\n"
         << "    }\n";
 
     // SerializeToStream
     xx_ << "    template <typename S>\n"
-        << "    bool SerializeToStream(S& s) const {\n"
-        << "        refcomp::stream_unparser<S> su(s);\n";
+        << "    bool SerializeToStream(S& s) const {\n";
 
     for (int i = 0; i < d->field_count(); ++i) {
         auto f = d->field(i);
@@ -477,33 +476,32 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
             if (!f->is_repeated())
                 xx_ << "        " << f->name() << "_.SerializeToStream(s);\n";
             else {
-                xx_ << "        su.unparse(" << f->name() << "_, [&](const " << refcomp_type_name(f, nb) << "& t){t.SerializeToStream(s);});\n";
+                xx_ << "        s.w(" << f->name() << "_);\n";
             }
         } else
-            xx_ << "        su.unparse(" << f->name() << "_);\n";
+            xx_ << "        s.w(" << f->name() << "_);\n";
     }
     xx_ << "        return true;\n";
     xx_ << "    }\n";
     
     // ParseFromArray
     xx_ << "    bool ParseFromArray(const void* data, size_t size) {\n"
-        << "        refcomp::simple_istream si(data, size);\n"
+        << "        rpc::string_rpc_istream si(data, size);\n"
         << "        return ParseFromStream(si);\n"
         << "    }\n";
 
     // ParseFromStream
      xx_ << "    template <typename S>\n"
-         << "    bool ParseFromStream(S& s) {\n"
-         << "        refcomp::stream_parser<S> sp(s);\n";
+         << "    bool ParseFromStream(S& s) {\n";
     for (int i = 0; i < d->field_count(); ++i) {
         auto f = d->field(i);
         if (f->cpp_type() == google::protobuf::FieldDescriptor::CPPTYPE_MESSAGE) {
             if (!f->is_repeated())
                 xx_ << "        if (!" << f->name() << "_.ParseFromStream(s)) return false;\n";
             else
-                xx_ << "        if (!sp.parse(" << f->name() << "_, [&](" << refcomp_type_name(f, nb) << "& t){return t.ParseFromStream(s);})) return false;\n";
+                xx_ << "        if (!s.r(" << f->name() << "_)) return false;\n";
         } else
-            xx_ << "        if (!sp.parse(" << f->name() << "_)) return false;\n";
+            xx_ << "        if (!s.r(" << f->name() << "_)) return false;\n";
     }
     xx_ << "        return true;\n";
     xx_ << "    }\n";
@@ -517,10 +515,9 @@ void nbcg::generateMessage(const gp::Descriptor* d, bool nb) const {
             if (!f->is_repeated())
                 xx_ << "        size += " << f->name() << "_.ByteSize();\n";
             else
-                xx_ << "        size += refcomp::stream_unparser<refcomp::simple_ostream>::bytecount(" 
-                    << f->name() << "_, [&](const " << refcomp_type_name(f, nb) << "& t){ return t.ByteSize();});\n";
+                xx_ << "        size += rpc::rpc_ostream_base::bytecount(" << f->name() << "_);\n";
         } else
-            xx_ << "        size += refcomp::stream_unparser<refcomp::simple_ostream>::bytecount(" << f->name() << "_);\n";
+            xx_ << "        size += rpc::rpc_ostream_base::bytecount(" << f->name() << "_);\n";
     }
     xx_ << "        return size;\n"
         << "    }\n";

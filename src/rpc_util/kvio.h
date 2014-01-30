@@ -5,7 +5,7 @@
 #include <vector>
 #include "rpc_stream_base.hh"
 
-class kvin : public rpc_istream_base {
+class kvin : public rpc::rpc_istream_base {
 private:
   int fd;
   char *buf;
@@ -31,7 +31,7 @@ public:
   int get_fd();
 };
 
-class kvout : public rpc_ostream_base {
+class kvout : public rpc::rpc_ostream_base {
 private:
   int fd;
   int len;
