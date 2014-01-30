@@ -1,9 +1,5 @@
 #pragma once
 
-#include "rpc_common/fdstream.hh"
-#include "async_rpcc.hh"
-#include "sync_rpc.hh"
-
 namespace rpc {
 
 struct grequest_base {
@@ -17,7 +13,7 @@ struct grequest_base {
     int proc_;
 };
 
-template <uint32_t PROC, bool NB, typename T>
+template <uint32_t PROC, bool NB>
 struct grequest : public grequest_base {
     typedef typename analyze_grequest<PROC, NB>::request_type request_type;
     typedef typename analyze_grequest<PROC, NB>::reply_type reply_type;
@@ -30,76 +26,52 @@ struct grequest : public grequest_base {
         reply_.set_eno(eno);
         this->execute();
     }
-    virtual async_rpcc<T>* rpcc() = 0;
 
     request_type req_;
     reply_type reply_;
 };
 
 template <uint32_t PROC, bool NB, typename T>
-struct grequest_remote : public grequest<PROC, NB, T> {
-    inline grequest_remote(uint32_t seq, async_rpcc<T>* c) 
-        : grequest<PROC, NB, T>(), c_(c), seq_(seq) {
+struct grequest_remote : public grequest<PROC, NB> {
+    inline grequest_remote(uint32_t seq, T* c) 
+        : c_(c), seq_(seq) {
     }
     inline uint32_t seq() const {
         return seq_;
     }
     virtual ~grequest_remote() {
     }
-    using typename grequest<PROC, NB, T>::execute;
+    using typename grequest<PROC, NB>::execute;
     inline void execute() {
         c_->write_reply(PROC, this->seq_, this->reply_, 0);
         if (!NB)
             delete this;
     }
-    async_rpcc<T>* rpcc() {
+    T* rpcc() {
         return c_;
     }
   private:
-    async_rpcc<T>* c_;
+    T* c_;
     uint32_t seq_;
 };
 
-template <uint32_t PROC, typename F, bool NB, typename T>
-struct grequest_local : public grequest<PROC, NB, T>, public F {
+template <uint32_t PROC, typename F, bool NB>
+struct grequest_local : public grequest<PROC, NB>, public F {
     inline grequest_local(F callback) : F(callback) {
     }
-    using typename grequest<PROC, NB, T>::execute;
+    using typename grequest<PROC, NB>::execute;
     inline void execute() {
         (static_cast<F &>(*this))(this->req_, this->reply_);
         if (!NB)
             delete this;
     }
-    async_rpcc<T>* rpcc() {
-        return NULL;
-    }
 };
-
-
-template <uint32_t PROC, bool NB, typename T>
-struct grequest_sync : public grequest<PROC, NB, T> {
-    inline grequest_sync(uint32_t seq, fdstream<T>* s) : seq_(seq), s_(s) {
-    }
-    using typename grequest<PROC, NB, T>::execute;
-    inline void execute() {
-        rpc::send_reply(s_, PROC, seq_, 0, this->reply_);
-        if (!NB)
-            delete this;
-    }
-    async_rpcc<T>* rpcc() {
-        return NULL;
-    }
-  private:
-    uint32_t seq_;
-    fdstream<T>* s_;
-};
-
 
 template <uint32_t PROC>
 struct req_maker {
-    template <typename F, typename T>
-    static grequest_local<PROC, F, false, T>* make_local(const F& f) {
-        return new grequest_local<PROC, F, false, T>(f);
+    template <typename F>
+    static grequest_local<PROC, F, false>* make_local(const F& f) {
+        return new grequest_local<PROC, F, false>(f);
     }
 };
 

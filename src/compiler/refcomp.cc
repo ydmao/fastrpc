@@ -241,11 +241,11 @@ void nbcg::generateXS(const gp::FileDescriptor* file) const {
         // stub
         for (int j = 0; j < s->method_count(); ++j) {
             auto m = s->method(j);
-            xs_ << "    virtual void " << m->name() << "(rpc::grequest<ProcNumber::" << m->name() << ", false, T>*, uint64_t) {\n"
+            xs_ << "    virtual void " << m->name() << "(rpc::grequest<ProcNumber::" << m->name() << ", false>*, uint64_t) {\n"
                 << "        report_failure<NB_" << up(m->name()) << ", ProcNumber::" << m->name() << ">();\n"
                 << "    }\n";
 
-            xs_ << "    virtual void " << m->name() << "(rpc::grequest<ProcNumber::" << m->name() << ", true, T>&, uint64_t) {\n"
+            xs_ << "    virtual void " << m->name() << "(rpc::grequest<ProcNumber::" << m->name() << ", true>&, uint64_t) {\n"
                 << "        report_failure<NB_" << up(m->name()) << ", ProcNumber::" << m->name() << ">();\n"
                 << "    }\n";
         }
@@ -264,18 +264,19 @@ void nbcg::generateXS(const gp::FileDescriptor* file) const {
         xs_ << "        return std::vector<int>(pl, pl + " << s->method_count() << ");\n"
             << "    }\n";
         // dispatch
-        xs_ << "    virtual void dispatch(rpc::parser& p, rpc::async_rpcc<T>* c, uint64_t now) {\n"
+	xs_ << "    typedef rpc::async_rpcc<T> asrt_type;\n";
+        xs_ << "    virtual void dispatch(rpc::parser& p, asrt_type* c, uint64_t now) {\n"
             << "       rpc::rpc_header* h = p.header<rpc::rpc_header>();\n"
             << "       switch (h->proc()) {\n";
         for (int j = 0; j < s->method_count(); ++j) {
             auto m = s->method(j);
             xs_ << "        case ProcNumber::" << m->name() << ":\n"
                 << "            if (NB_" << up(m->name()) << ") {\n"
-                << "                rpc::grequest_remote<ProcNumber::" << m->name() << ", true, T> q(h->seq_, c);\n"
+                << "                rpc::grequest_remote<ProcNumber::" << m->name() << ", true, asrt_type> q(h->seq_, c);\n"
                 << "                p.parse_message(q.req_);\n"
                 << "                " << m->name() << "(q, now);\n"
                 << "            } else {\n"
-                << "                auto q = new rpc::grequest_remote<ProcNumber::" << m->name() << ", false, T>(h->seq_, c);\n"
+                << "                auto q = new rpc::grequest_remote<ProcNumber::" << m->name() << ", false, asrt_type>(h->seq_, c);\n"
                 << "                p.parse_message(q->req_);\n"
                 << "                " << m->name() << "(q, now);\n"
                 << "            }break;\n";
@@ -286,17 +287,19 @@ void nbcg::generateXS(const gp::FileDescriptor* file) const {
             << "    }\n";
 
         // dispatch_sync
-	xs_ << "    void dispatch_sync(rpc::rpc_header& h, std::string& b, fdstream<T>* c, uint64_t now) {\n"
+        xs_ << "    typedef typename rpc::rpc_server_base<T>::srt_type srt_type;\n";
+
+	xs_ << "    void dispatch_sync(rpc::rpc_header& h, std::string& b, srt_type* c, uint64_t now) {\n"
             << "       switch (h.proc()) {\n";
         for (int j = 0; j < s->method_count(); ++j) {
             auto m = s->method(j);
             xs_ << "        case ProcNumber::" << m->name() << ":\n"
                 << "            if (NB_" << up(m->name()) << ") {\n"
-                << "                rpc::grequest_sync<ProcNumber::" << m->name() << ", true, T> q(h.seq_, c);\n"
+                << "                rpc::grequest_remote<ProcNumber::" << m->name() << ", true, srt_type> q(h.seq_, c);\n"
                 << "                q.req_.ParseFromArray(&b[0], h.payload_length());\n"
                 << "                " << m->name() << "(q, now);\n"
                 << "            } else {\n"
-                << "                auto q = new rpc::grequest_sync<ProcNumber::" << m->name() << ", false, T>(h.seq_, c);\n"
+                << "                auto q = new rpc::grequest_remote<ProcNumber::" << m->name() << ", false, srt_type>(h.seq_, c);\n"
                 << "                q->req_.ParseFromArray(&b[0], h.payload_length());\n"
                 << "                " << m->name() << "(q, now);\n"
                 << "            }break;\n";

@@ -9,6 +9,7 @@
 #include "rpc_common/util.hh"
 #include "rpc_common/fdstream.hh"
 #include "rpc/rpc_server_base.hh"
+#include "rpc/async_rpcc.hh"
 
 namespace rpc {
 
@@ -125,14 +126,14 @@ struct threaded_rpc_server {
     }
 
     void process_client(int fd) {
-        fdstream<T> sm(fd);
+        typename rpc_server_base<T>::srt_type sm(fd);
         rpc_header h;
         std::string body;
         while (true) {
-            if (!sm.read((char*)&h, sizeof(h)))
+            if (!sm.read_hard((char*)&h, sizeof(h)))
                 return;
             body.resize(h.payload_length());
-            if (!sm.read(&body[0], h.payload_length()))
+            if (!sm.read_hard(&body[0], h.payload_length()))
                 return;
             auto s = sp_[h.proc()];
             mandatory_assert(s);

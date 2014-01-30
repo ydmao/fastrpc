@@ -7,6 +7,8 @@
 #include "rpc_util/kvio.h"
 #include "rpc_common/sock_helper.hh"
 #include "rpc_util/buffered_rpc_stream.hh"
+#include "rpc_parser.hh"
+#include "sync_rpc.hh"
 
 namespace rpc {
 
@@ -66,12 +68,18 @@ struct buffered_sync_transport : public BASE {
 	    flush();
 	return ok;
     }
+    template <typename M>
+    bool send_reply(uint32_t mproc, uint32_t seq, uint32_t cid, const M& m, bool doflush) {
+	bool ok = rpc::send_reply(&out_, mproc, seq, cid, m);
+	if (ok && doflush)
+	    flush();
+	return ok;
+    }
+
     template <typename REPLY>
     void safe_send_reply(const REPLY& reply, const rpc::rpc_header& h, bool doflush) {
 	this->lock();
-	rpc::send_reply(&out_, h.mproc(), h.seq_, h.cid_, reply);
-	if (doflush)
-	    flush();
+	send_reply(h.mproc(), h.seq_, h.cid_, reply, doflush);
 	this->unlock();
     }
     template <typename PROC, typename M, typename REPLY>
@@ -135,6 +143,11 @@ struct sync_rpc_transport : public spinlock {
     bool send_request(PROC proc, uint32_t seq, const M& m, bool doflush) {
 	assert(connected());
 	return conn_->send_request(proc, seq, cid_, m, doflush);
+    }
+    template <typename PROC, typename REPLY>
+    bool write_reply(PROC proc, int seq, const REPLY& r, uint64_t /*latency*/) {
+	assert(connected());
+	return conn_->send_reply(proc, seq, cid_, r, false);
     }
     template <typename PROC, typename M, typename REPLY>
     bool sync_call(uint32_t seq, PROC proc, const M& req, REPLY& r) {
