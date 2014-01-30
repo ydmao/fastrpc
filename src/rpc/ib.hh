@@ -479,13 +479,13 @@ struct infb_conn {
     template <typename F>
     int poll(ibv_cq* cq, F f) {
 	ibv_wc wc[cq->cqe];
-	int ne = 0;
+	int ne;
 	int n = 0;
-	while (blocking() && ne < 1 && likely(!error_)) {
+	do {
 	    CHECK((ne = ibv_poll_cq(cq, cq->cqe, wc)) >= 0);
 	    if (++n % 10000 == 0)
 		check_error();
-	}
+	} while (blocking() && ne < 1 && likely(!error_));
 	if (unlikely(error_))
 	    return -1;
 	for (int i = 0; i < ne; ++i) {
