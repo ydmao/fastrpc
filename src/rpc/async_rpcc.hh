@@ -183,6 +183,8 @@ async_rpcc<T>::~async_rpcc() {
     mandatory_assert(!noutstanding_);
     delete[] waiting_;
     delete tcpp_;
+    if (c_)
+        delete c_;
 }
 
 template <typename T>

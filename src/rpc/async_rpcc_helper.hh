@@ -21,9 +21,6 @@ class async_batched_rpcc : public rpc_handler<T>, public async_rpcc<T> {
 	: async_rpcc<T>(new multi_tcpp(rmt, local, rmtport), this, cid, force_connected, NULL), 
           loop_(nn_loop::get_tls_loop()), w_(w) {
     }
-    ~async_batched_rpcc() {
-    }
-
     bool drain() {
         mandatory_assert(loop_->enter() == 1,
                          "Don't call drain within a libev_loop!");
