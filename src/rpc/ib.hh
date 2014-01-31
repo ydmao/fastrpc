@@ -76,6 +76,15 @@ struct infb_sockaddr {
 
 struct infb_provider {
     static infb_provider* make(const char* dname, int ib_port, int sl) {
+	static bool init = false;
+	static std::mutex mu;
+	if (!init) {
+	    std::lock_guard<std::mutex> lk(mu);
+	    if (!init) {
+	        ibv_fork_init();
+	        init = true;
+	    }
+	}
         ibv_device** dl = ibv_get_device_list(NULL);
 	CHECK(dl);
 	ibv_device* d = NULL;
