@@ -116,10 +116,10 @@ struct sync_rpc_transport : public spinlock {
     }
 
     template <typename REPLY>
-    void safe_send_reply(const REPLY& reply, const rpc::rpc_header& h, bool doflush) {
+    void safe_send_reply(const REPLY& r, const rpc::rpc_header& h, bool doflush) {
 	this->lock();
-	assert(h.cid_ == cid_);
-	bool ok = write_reply(h.mproc(), h.seq_, reply, 0);
+	assert(connected());
+	bool ok = rpc::send_reply(conn_->out(), h.mproc(), h.seq_, h.cid_, r);
 	if (ok && doflush)
 	    flush();
 	this->unlock();
