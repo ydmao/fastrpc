@@ -278,7 +278,7 @@ struct infb_conn {
     }
 
     virtual ~infb_conn() {
-	printf("~infb_conn\n");
+	//printf("~infb_conn\n");
 	if (qp_)
 	    CHECK(ibv_destroy_qp(qp_) == 0);
 	if (mr_)
@@ -378,10 +378,10 @@ struct infb_conn {
 
     int connect(int fd) {
 	assert(fd >= 0);
-	local_.dump(stdout);
+	//local_.dump(stdout);
         assert(::write(fd, &local_, sizeof(local_)) == sizeof(local_));
         assert(::read(fd, &remote_, sizeof(remote_)) == sizeof(remote_));
-	remote_.dump(stdout);
+	//remote_.dump(stdout);
 
 	ibv_qp_attr attr;
 	bzero(&attr, sizeof(attr));
@@ -712,7 +712,7 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
 
   private:
     void real_close() {
-	printf("real_close: %d\n", fd_);
+	//printf("real_close: %d\n", fd_);
 	if (fd_ < 0)
 	    return;
 	// stop sw_
