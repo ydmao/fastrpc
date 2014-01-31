@@ -76,6 +76,15 @@ struct infb_sockaddr {
 
 struct infb_provider {
     static infb_provider* make(const char* dname, int ib_port, int sl) {
+	static bool init = false;
+	static std::mutex mu;
+	if (!init) {
+	    std::lock_guard<std::mutex> lk(mu);
+	    if (!init) {
+	        ibv_fork_init();
+	        init = true;
+	    }
+	}
         ibv_device** dl = ibv_get_device_list(NULL);
 	CHECK(dl);
 	ibv_device* d = NULL;
@@ -210,15 +219,15 @@ struct infb_conn {
 	    fprintf(stderr, "Infiniband requires root priviledge for performance\n");
 	    exit(-1);
 	}
-	printf("max mr size is %ld\n", p_->attr().max_mr_size);
-	printf("actual rx_depth %d, tx_depth %d\n", rcq_->cqe, scq_->cqe);
+	//printf("max mr size is %ld\n", p_->attr().max_mr_size);
+	//printf("actual rx_depth %d, tx_depth %d\n", rcq_->cqe, scq_->cqe);
 
 	CHECK(pd_ = ibv_alloc_pd(p_->context()));
 
 	// create and register memory region of size_ bytes
 	const int page_size = sysconf(_SC_PAGESIZE);
 	buf_.len_ = round_up(mtub_ * (rcq_->cqe + scq_->cqe), page_size);
-	printf("allocating %d bytes\n", buf_.len_);
+	//printf("allocating %d bytes\n", buf_.len_);
 	CHECK(buf_.s_ = (char*)memalign(page_size, buf_.len_));
 	bzero(buf_.s_, buf_.len_);
 	CHECK(mr_ = ibv_reg_mr(pd_, buf_.s_, buf_.len_, IBV_ACCESS_LOCAL_WRITE));
@@ -263,12 +272,12 @@ struct infb_conn {
 	bzero(&xattr, sizeof(xattr));
 	CHECK(ibv_query_qp(qp_, &xattr, IBV_QP_CAP, &attr) == 0);
 	max_inline_size_ = xattr.cap.max_inline_data;
-	printf("max_inline_size: %zd\n", max_inline_size_);
+	//printf("max_inline_size: %zd\n", max_inline_size_);
 	return 0;
     }
 
     virtual ~infb_conn() {
-	printf("~infb_conn\n");
+	//printf("~infb_conn\n");
 	if (qp_)
 	    CHECK(ibv_destroy_qp(qp_) == 0);
 	if (mr_)
@@ -368,10 +377,10 @@ struct infb_conn {
 
     int connect(int fd) {
 	assert(fd >= 0);
-	local_.dump(stdout);
+	//local_.dump(stdout);
         assert(::write(fd, &local_, sizeof(local_)) == sizeof(local_));
         assert(::read(fd, &remote_, sizeof(remote_)) == sizeof(remote_));
-	remote_.dump(stdout);
+	//remote_.dump(stdout);
 
 	ibv_qp_attr attr;
 	bzero(&attr, sizeof(attr));
@@ -702,7 +711,7 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
 
   private:
     void real_close() {
-	printf("real_close: %d\n", fd_);
+	//printf("real_close: %d\n", fd_);
 	if (fd_ < 0)
 	    return;
 	// stop sw_
