@@ -63,7 +63,7 @@ struct sync_rpc_transport : public spinlock {
     }
     sync_rpc_transport(const std::string& h, int port) : conn_(NULL), cid_(0) {
 	p_ = NULL;
-	init(h, port, "0.0.0.0");
+	set_address(h, port, "0.0.0.0");
     }
     sync_rpc_transport(int fd) : conn_(NULL), cid_(0) {
 	p_ = new onetime_tcpp(fd);
@@ -76,8 +76,9 @@ struct sync_rpc_transport : public spinlock {
     }
     explicit sync_rpc_transport(const sync_rpc_transport&) = delete;
     void operator=(const sync_rpc_transport&) = delete;
-    void init(const std::string& h, int port, const std::string& local) {
-	assert(p_ == NULL);
+    void set_address(const std::string& h, int port, const std::string& local) {
+	if (p_)
+	    delete p_;
 	p_ = new multi_tcpp(h.c_str(), local.c_str(), port);
     }
     bool connect() {
