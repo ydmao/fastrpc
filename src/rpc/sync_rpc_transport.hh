@@ -59,7 +59,7 @@ struct buffered_sync_transport {
 
 template <typename T>
 struct sync_rpc_transport : public spinlock {
-    sync_rpc_transport() : sync_rpc_transport("", 0) {
+    sync_rpc_transport() : p_(NULL), conn_(NULL), cid_(0) {
     }
     sync_rpc_transport(const std::string& h, int port) : conn_(NULL), cid_(0) {
 	p_ = NULL;
