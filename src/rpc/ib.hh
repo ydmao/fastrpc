@@ -25,7 +25,7 @@
 namespace rpc {
 enum { nodebug = 1 };
 
-inline void dbg(const char* fmt, ...) {
+inline void ibdbg(const char* fmt, ...) {
     if (nodebug)
 	return;
     va_list args;
@@ -169,8 +169,10 @@ inline infb_conn_type make_infb_type(const char* type) {
 struct infb_async_conn;
 
 struct infb_conn {
-    infb_conn(infb_conn_type type, infb_provider* p) 
-	: p_(p), type_(type), fd_(-1), error_(false) {
+    infb_conn(infb_conn_type type, infb_provider* p) : type_(type) {
+	p_ = p;
+	fd_ = -1;
+	error_ = false;
 	pd_ = NULL;
 	mr_ = NULL;
 	scq_ = rcq_ = NULL;
@@ -347,7 +349,7 @@ struct infb_conn {
 	    }
 	}
 	ssize_t r = 0;
-	while (r < len && wbuf_.length()) {
+	while (r < ssize_t(len) && wbuf_.length()) {
 	    size_t n = std::min(len - r, wbuf_.length());
 	    memcpy(wbuf_.s_, (const char*)buf + r, n);
 	    if (post_send_with_buffer(wbuf_.data(), n, IBV_SEND_SIGNALED) != 0) {
@@ -579,7 +581,7 @@ struct infb_conn {
 	    perror("ibv_post_send");
 	    return -1;
 	}
-	dbg("post_send_with_buffer: sent %zd bytes\n", len);
+	ibdbg("post_send_with_buffer: sent %zd bytes\n", len);
 	++nw_;
 	return 0;
     }
@@ -645,7 +647,7 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
     bool drain() {
         assert(!blocking() && sw_);
 	bool dispatched = false;
-        dbg("drain: dispatch before querying for CQE\n");
+        ibdbg("drain: dispatch before querying for CQE\n");
         while (likely(!closed())) {
             int flags = readable() ? ev::READ : 0;
             flags |= writable() ? ev::WRITE : 0;
@@ -719,9 +721,9 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
 	    sw_->stop();
 	flags_ = flags;
     }
+    int flags_;
     ev::io* sw_; // watcher on the channel (schan_ == rchan_)
     callback_type cb_;
-    int flags_;
     ev::io obw_; // out-of-band fd watcher
 };
 

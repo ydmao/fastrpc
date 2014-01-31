@@ -6,6 +6,7 @@
 #include "rpc_common/util.hh"
 #include "rpc_common/compiler.hh"
 #include "gcrequest.hh"
+#include "tcp_provider.hh"
 
 namespace rpc {
 
@@ -17,34 +18,6 @@ struct rpc_handler {
     virtual void handle_rpc(async_rpcc<T> *c, parser& p) = 0;
     virtual void handle_client_failure(async_rpcc<T> *c) = 0;
     virtual void handle_post_failure(async_rpcc<T> *c) = 0;
-};
-
-struct tcp_provider {
-    virtual int connect() = 0;
-    virtual ~tcp_provider() {}
-};
-
-struct multi_tcpp : public tcp_provider {
-    multi_tcpp(const char* remote, const char* local, int remote_port)
-	: rmt_(remote), local_(local), rmtport_(remote_port) {
-    }
-    int connect() {
-	return rpc::common::sock_helper::connect(rmt_.c_str(), rmtport_, local_.c_str(), 0);
-    }
-  private:
-    std::string rmt_;
-    std::string local_;
-    int rmtport_;
-};
-
-struct onetime_tcpp : public tcp_provider {
-    onetime_tcpp(int fd) : fd_(fd) {}
-    int connect() {
-	int x = fd_;
-	fd_ = -1;
-	return x;
-    }
-    int fd_;
 };
 
 template <typename T>
@@ -169,10 +142,9 @@ template <typename T>
 async_rpcc<T>::async_rpcc(tcp_provider* tcpp, 
 		       rpc_handler<T>* rh, int cid, bool force_connected,
 		       proc_counters<app_param::nproc, true> *counts)
-    : tcpp_(tcpp), c_(NULL), rh_(rh), 
+    : caller_arg_(), tcpp_(tcpp), c_(NULL),
       waiting_(new gcrequest_base *[1024]), waiting_capmask_(1023), 
-      seq_(random() / 2), noutstanding_(0), counts_(counts), cid_(cid),
-      caller_arg_() {
+      seq_(random() / 2), rh_(rh), noutstanding_(0), counts_(counts), cid_(cid) {
     bzero(waiting_, sizeof(gcrequest_base *) * 1024);
     if (force_connected)
 	mandatory_assert(connect());

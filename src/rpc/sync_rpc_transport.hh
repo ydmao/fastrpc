@@ -9,6 +9,7 @@
 #include "rpc_util/buffered_rpc_stream.hh"
 #include "rpc_parser.hh"
 #include "sync_rpc.hh"
+#include "tcp_provider.hh"
 
 namespace rpc {
 
@@ -60,23 +61,28 @@ template <typename T>
 struct sync_rpc_transport : public spinlock {
     sync_rpc_transport() : sync_rpc_transport("", 0) {
     }
-    sync_rpc_transport(const std::string& h, int port) 
-        : h_(h), port_(port), conn_(NULL), cid_(0) {
+    sync_rpc_transport(const std::string& h, int port) : conn_(NULL), cid_(0) {
+	p_ = NULL;
+	init(h, port, "0.0.0.0");
+    }
+    sync_rpc_transport(int fd) : conn_(NULL), cid_(0) {
+	p_ = new onetime_tcpp(fd);
+	assert(connect());
     }
     ~sync_rpc_transport() {
+	if (p_)
+	    delete p_;
         disconnect();
     }
     explicit sync_rpc_transport(const sync_rpc_transport&) = delete;
     void operator=(const sync_rpc_transport&) = delete;
-    void init(const std::string& h, int port, const std::string& localhost, int localport) {
-        h_ = h;
-        port_ = port;
-        localhost_ = localhost;
-	localport_ = localport;
+    void init(const std::string& h, int port, const std::string& local) {
+	assert(p_ == NULL);
+	p_ = new multi_tcpp(h.c_str(), local.c_str(), port);
     }
     bool connect() {
         if (conn_ == NULL) {
-            int fd = rpc::common::sock_helper::connect(h_.c_str(), port_, localhost_.c_str(), localport_);
+	    int fd = p_->connect();
             if (fd < 0)
                 return false;
             rpc::common::sock_helper::make_nodelay(fd);
@@ -151,10 +157,7 @@ struct sync_rpc_transport : public spinlock {
 	cid_ = cid;
     }
   protected:
-    std::string h_;
-    int port_;
-    std::string localhost_;
-    int localport_;
+    tcp_provider* p_;
     T* conn_;
     int cid_;
 };

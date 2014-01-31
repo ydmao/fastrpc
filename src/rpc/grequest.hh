@@ -13,7 +13,7 @@ struct grequest_base {
     int proc_;
 };
 
-template <uint32_t PROC, bool NB>
+template <uint32_t PROC, bool NB = false>
 struct grequest : public grequest_base {
     typedef typename analyze_grequest<PROC, NB>::request_type request_type;
     typedef typename analyze_grequest<PROC, NB>::reply_type reply_type;
