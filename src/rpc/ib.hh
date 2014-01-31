@@ -185,7 +185,6 @@ struct infb_conn {
     }
 
     void shutdown() {
-	// XXX: how?
 	if (fd_ >= 0)
 	    ::shutdown(fd_, SHUT_RDWR);
     }
