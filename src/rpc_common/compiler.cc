@@ -6,7 +6,15 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <unistd.h>
+#include <execinfo.h>
 
+#if 1
+void print_stacktrace() {
+    void *array[50];
+    size_t size = backtrace(array, 50);
+    backtrace_symbols_fd(array, size, 2);
+}
+#else
 void print_stacktrace() {
     char pid[20];
     sprintf(pid, "%d", getpid());
@@ -24,6 +32,7 @@ void print_stacktrace() {
             waitpid(child_pid, NULL, 0);
     }
 }
+#endif
 
 void fail_mandatory_assert(const char* file, int line, const char* assertion, const char* message) {
     if (message)
