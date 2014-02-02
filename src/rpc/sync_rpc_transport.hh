@@ -29,10 +29,12 @@ struct spinlock {
 
 template <typename T>
 struct buffered_sync_transport {
-    buffered_sync_transport(int fd) 
-	: tp_(new T(fd)), in_(tp_, 65536), out_(tp_, 65536) {
+    typedef buffered_sync_transport<T> sync_transport;
+    typedef typename T::sync_transport child_transport;
+
+    buffered_sync_transport(child_transport* tp) 
+	: tp_(tp), in_(tp_, 65536), out_(tp_, 65536) {
 	assert(tp_ != NULL);
-	assert(fd >= 0);
     }
     ~buffered_sync_transport() {
 	delete tp_;
@@ -51,10 +53,18 @@ struct buffered_sync_transport {
 	return &out_;
     }
 
+    static sync_transport* make_sync(int fd) {
+	child_transport* tp = T::make_sync(fd);
+	sync_transport* st = NULL;
+	if (!(tp && (st = new sync_transport(tp))))
+	    close(fd);
+	return st;
+    }
+
   private:
-    T* tp_;
-    buffered_rpc_istream<T> in_;
-    buffered_rpc_ostream<T> out_;
+    child_transport* tp_;
+    buffered_rpc_istream<child_transport> in_;
+    buffered_rpc_ostream<child_transport> out_;
 };
 
 template <typename T>
@@ -67,7 +77,7 @@ struct sync_rpc_transport : public spinlock {
     }
     sync_rpc_transport(int fd) : conn_(NULL), cid_(0) {
 	p_ = new onetime_tcpp(fd);
-	assert(connect());
+	connect();
     }
     ~sync_rpc_transport() {
 	if (p_)
@@ -87,9 +97,9 @@ struct sync_rpc_transport : public spinlock {
             if (fd < 0)
                 return false;
             rpc::common::sock_helper::make_nodelay(fd);
-	    conn_ = new T(fd);
+	    conn_ = T::make_sync(fd);
         }
-        return true;
+        return conn_ != NULL;
     }
     bool connected() const {
         return conn_;
@@ -105,7 +115,8 @@ struct sync_rpc_transport : public spinlock {
 	    conn_->shutdown();
     }
     bool hard_read(void* buffer, size_t len) {
-	assert(connected());
+	if (!connected())
+	    return false;
 	return conn_->in()->read((char*)buffer, len);
     }
     bool safe_flush() {
@@ -116,22 +127,28 @@ struct sync_rpc_transport : public spinlock {
     }
 
     template <typename REPLY>
-    void safe_send_reply(const REPLY& r, const rpc::rpc_header& h, bool doflush) {
+    bool safe_send_reply(const REPLY& r, const rpc::rpc_header& h, bool doflush) {
 	this->lock();
-	assert(connected());
+	if (!connected()) {
+	    this->unlock();
+	    return false;
+	}
 	bool ok = rpc::send_reply(conn_->out(), h.mproc(), h.seq_, h.cid_, r);
 	if (ok && doflush)
-	    flush();
+	    ok = flush();
 	this->unlock();
+	return ok;
     }
     template <typename M>
     bool read_reply(rpc::rpc_header& h, M& m) {
-	assert(connected());
+	if (!connected())
+	    return false;
 	return rpc::read_reply(conn_->in(), m, h);
     }
     template <typename PROC, typename M>
     bool send_request(PROC proc, uint32_t seq, const M& m, bool doflush) {
-	assert(connected());
+	if (!connected())
+	    return false;
 	bool ok = rpc::send_request(conn_->out(), proc, seq, cid_, m);
 	if (ok && doflush)
 	    conn_->flush();
@@ -139,7 +156,8 @@ struct sync_rpc_transport : public spinlock {
     }
     template <typename PROC, typename REPLY>
     bool write_reply(PROC mproc, int seq, const REPLY& r, uint64_t /*latency*/) {
-	assert(connected());
+	if (!connected())
+	    return false;
 	bool ok = rpc::send_reply(conn_->out(), mproc, seq, cid_, r);
 	if (ok && /*doflush*/false)
 	    flush();
@@ -147,11 +165,13 @@ struct sync_rpc_transport : public spinlock {
     }
     template <typename PROC, typename M, typename REPLY>
     bool sync_call(uint32_t seq, PROC proc, const M& req, REPLY& r) {
-	assert(connected());
+	if (!connected())
+	    return false;
 	return rpc::sync_call(conn_->out(), conn_->in(), cid_, seq, proc, req, r);
     }
     bool flush() {
-	assert(connected());
+	if (!connected())
+	    return false;
 	return conn_->flush();
     }
     void set_rpc_clientid(int cid) {
@@ -159,7 +179,8 @@ struct sync_rpc_transport : public spinlock {
     }
   protected:
     tcp_provider* p_;
-    T* conn_;
+    typedef typename T::sync_transport child_transport;
+    child_transport* conn_;
     int cid_;
 };
 }
