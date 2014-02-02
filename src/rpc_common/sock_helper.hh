@@ -83,12 +83,12 @@ class sock_helper {
     }
     static void peerinfo(int s, std::string& addr, int& port) {
         sockaddr_in sin;
-        socklen_t len;
+        socklen_t len = sizeof(sin);
         int r = getpeername(s, (sockaddr*)&sin, &len);
         mandatory_assert(r == 0);
         port = ntohs(sin.sin_port);
         char buf[128];
-        mandatory_assert(inet_ntop(AF_INET, &sin.sin_addr, buf, sizeof(buf)));
+        mandatory_assert(inet_ntop(sin.sin_family, &sin.sin_addr, buf, sizeof(buf)));
         addr.assign(buf, strlen(buf));
     }
   private:
