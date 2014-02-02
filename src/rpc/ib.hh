@@ -645,8 +645,8 @@ struct infb_conn {
 struct infb_async_conn : public infb_conn, public edge_triggered_channel {
     ~infb_async_conn() {
 	real_close();
-	nn_loop::get_tls_loop()->remove_edge_triggered(this);
 	if (sw_) {
+	    nn_loop::get_tls_loop()->remove_edge_triggered(this);
 	    sw_->stop();
 	    delete sw_;
 	    sw_ = NULL;
