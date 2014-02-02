@@ -98,6 +98,9 @@ struct nn_loop {
 	if (!dispatched)
             loop_.run(ev::ONCE);
     }
+    bool has_edge_triggered() const {
+	return !chan_.empty();
+    }
     // Program should not call run because we need to call
     // run_once to drain edge-triggered channels
     /*
