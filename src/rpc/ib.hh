@@ -461,9 +461,11 @@ struct infb_conn {
 	    FD_SET(chan->fd, &rfds);
 	    const int nfds = std::max(fd_, chan->fd) + 1;
             select(nfds, &rfds, NULL, NULL, NULL);
-            if (unlikely(FD_ISSET(fd_, &rfds)))
+            if (unlikely(FD_ISSET(fd_, &rfds))) {
 	        error_ = true;
-	    return NULL;
+		return NULL;
+	    } else
+	        assert(FD_ISSET(chan->fd, &rfds));
 	}
         ibv_cq* cq;
 	void* ctx;
