@@ -493,7 +493,6 @@ struct infb_conn {
 
     template <typename F>
     int poll(ibv_cq* cq, F f) {
-	fprintf(stderr, "polling error %d\n", error_.load());
 	ibv_wc wc[cq->cqe];
 	int ne;
 	int n = 0;
@@ -502,8 +501,6 @@ struct infb_conn {
 	    if (++n % 10000 == 0)
 		check_error();
 	} while (blocking() && ne < 1 && likely(!error_));
-	fprintf(stderr, "done polling %d\n", error_.load());
-
 	if (unlikely(error_))
 	    return -1;
 	for (int i = 0; i < ne; ++i) {
