@@ -810,7 +810,7 @@ struct infb_factory {
         default:
 	    assert(0 && "infb_create: bad type");
         };
-        if (c && c->create() && c->connect(fd))
+        if (c && c->create() == 0 && c->connect(fd) == 0)
             return c;
         else {
             if (c) delete c;
