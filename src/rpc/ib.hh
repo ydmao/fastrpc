@@ -303,7 +303,8 @@ struct infb_conn {
     }
 
     ssize_t read(void* buf, size_t len) {
-	if (closed() || error_) {
+	// allow reads if readable, even if there is error on it
+	if (!readable() && (closed() || error_)) {
 	    errno = EIO;
 	    return -1;
 	}
