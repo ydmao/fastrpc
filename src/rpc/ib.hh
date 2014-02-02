@@ -36,6 +36,8 @@ inline void ibdbg(const char* fmt, ...) {
 }
 
 struct infb_conn;
+struct ibnet;
+struct infb_factory;
 
 template <typename A, typename B>
 inline A round_down(A a, B b) {
@@ -379,8 +381,10 @@ struct infb_conn {
     int connect(int fd) {
 	assert(fd >= 0);
 	//local_.dump(stdout);
-        assert(::write(fd, &local_, sizeof(local_)) == sizeof(local_));
-        assert(::read(fd, &remote_, sizeof(remote_)) == sizeof(remote_));
+        if (::write(fd, &local_, sizeof(local_)) != sizeof(local_))
+	    return -1;
+        if (::read(fd, &remote_, sizeof(remote_)) != sizeof(remote_))
+	    return -1;
 	//remote_.dump(stdout);
 
 	ibv_qp_attr attr;
@@ -489,6 +493,7 @@ struct infb_conn {
 
     template <typename F>
     int poll(ibv_cq* cq, F f) {
+	fprintf(stderr, "polling error %d\n", error_.load());
 	ibv_wc wc[cq->cqe];
 	int ne;
 	int n = 0;
@@ -497,6 +502,8 @@ struct infb_conn {
 	    if (++n % 10000 == 0)
 		check_error();
 	} while (blocking() && ne < 1 && likely(!error_));
+	fprintf(stderr, "done polling %d\n", error_.load());
+
 	if (unlikely(error_))
 	    return -1;
 	for (int i = 0; i < ne; ++i) {
@@ -639,11 +646,6 @@ struct infb_conn {
 };
 
 struct infb_async_conn : public infb_conn, public edge_triggered_channel {
-    infb_async_conn(int fd)
-        : infb_conn(INFB_CONN_ASYNC, infb_provider::default_instance()), flags_(0), sw_(NULL) {
-        assert(create() == 0);
-        assert(connect(fd) == 0);
-    }
     ~infb_async_conn() {
 	real_close();
 	nn_loop::get_tls_loop()->remove_edge_triggered(this);
@@ -661,13 +663,13 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
             int flags = readable() ? ev::READ : 0;
             flags |= writable() ? ev::WRITE : 0;
             int interest = flags & flags_;
-            if (likely(!interest))
+            if (unlikely(!interest))
     	        break;
 	    dispatched = true;
-	    cb_(this, interest);
+	    assert(!cb_(this, interest));
         }
 	if (unlikely(closed())) {
-	    cb_(this, ev::READ);
+	    assert(cb_(this, ev::READ));
 	    return true;
 	}
         return dispatched;
@@ -681,7 +683,7 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
 	    real_read();
     }
 
-    typedef std::function<void(infb_async_conn*,int)> callback_type;
+    typedef std::function<bool(infb_async_conn*,int)> callback_type;
     void register_callback(callback_type cb, int flags) {
 	nn_loop* loop = nn_loop::get_tls_loop();
 	loop->add_edge_triggered(this);
@@ -708,6 +710,12 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
     }
     int ev_flags() const {
 	return flags_;
+    }
+  protected:
+    friend class ibnet;
+    friend class infb_factory;
+    infb_async_conn()
+        : infb_conn(INFB_CONN_ASYNC, infb_provider::default_instance()), flags_(0), sw_(NULL) {
     }
 
   private:
@@ -737,37 +745,69 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
 };
 
 struct infb_poll_conn : public infb_conn {
-    infb_poll_conn(int fd) 
+  protected:
+    friend class ibnet;
+    friend class infb_factory;
+    infb_poll_conn() 
         : infb_conn(INFB_CONN_POLL, infb_provider::default_instance()) {
-        assert(create() == 0);
-        assert(connect(fd) == 0);
     }
 };
 
 struct infb_int_conn : public infb_conn {
-    infb_int_conn(int fd)
+  protected:
+    friend class ibnet;
+    friend class infb_factory;
+    infb_int_conn()
         : infb_conn(INFB_CONN_INT, infb_provider::default_instance()) {
-        assert(create() == 0);
-        assert(connect(fd) == 0);
     }
 };
 struct ibnet {
     typedef infb_int_conn sync_transport;
     typedef infb_async_conn async_transport;
+    template <typename T>
+    static T* make(int fd) {
+	T* c = new T();
+	if (!(c && c->create() == 0 && c->connect(fd) == 0)) {
+	    if (c) { 
+		delete c; 
+	        c = NULL;
+	    }
+	    close(fd);
+        }
+	return c;
+    }
+    static sync_transport* make_sync(int fd) {
+	return make<sync_transport>(fd);
+    }
+    static async_transport* make_async(int fd) {
+	return make<async_transport>(fd);
+    }
 };
 
-inline infb_conn* infb_create(infb_conn_type type, int fd) {
-    switch (type) {
-    case INFB_CONN_POLL:
-	return new infb_poll_conn(fd);
-    case INFB_CONN_INT:
-	return new infb_int_conn(fd);
-    case INFB_CONN_ASYNC:
-	return new infb_async_conn(fd);
-    default:
-	assert(0 && "infb_create: bad type");
-    };
-}
+struct infb_factory {
+    static infb_conn* create(infb_conn_type type, int fd) {
+        infb_conn* c = NULL;
+        switch (type) {
+        case INFB_CONN_POLL:
+	    c = new infb_poll_conn();
+    	    break;
+        case INFB_CONN_INT:
+	    c = new infb_int_conn();
+    	    break;
+        case INFB_CONN_ASYNC:
+  	    c = new infb_async_conn();
+   	    break;
+        default:
+	    assert(0 && "infb_create: bad type");
+        };
+        if (c && c->create() && c->connect(fd))
+            return c;
+        else {
+            if (c) delete c;
+            return NULL;
+        }
+    }
+};
 
 struct infb_server {
     infb_server() : sfd_(-1) {
@@ -779,7 +819,7 @@ struct infb_server {
     infb_conn* accept(infb_conn_type type) {
         int fd = rpc::common::sock_helper::accept(sfd_);
         assert(fd >= 0);
-	return infb_create(type, fd);
+	return infb_factory::create(type, fd);
     }
   private:
     int sfd_;
@@ -788,7 +828,7 @@ struct infb_server {
 inline infb_conn* infb_connect(const char* ip, int port, infb_conn_type type) {
     int fd = rpc::common::sock_helper::connect(ip, port);
     assert(fd >= 0);
-    return infb_create(type, fd);
+    return infb_factory::create(type, fd);
 }
 
 }

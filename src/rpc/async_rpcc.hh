@@ -33,8 +33,11 @@ class async_rpcc : public transport_handler<T> {
 	int fd = tcpp_->connect();
         if (fd < 0)
             return false;
-        c_ = new async_buffered_transport<T>(fd, this);
-        return true;
+	typedef typename T::async_transport transport;
+	transport* tp = T::template make<transport>(fd);
+	if (tp)
+            c_ = new async_buffered_transport<T>(tp, this);
+        return c_ != NULL;
     }
     inline bool connected() const {
 	return c_ != NULL && !c_->error();

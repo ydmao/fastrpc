@@ -45,7 +45,9 @@ struct outbuf : public bi::slist_base_hook<> {
 
 template <typename T>
 struct async_buffered_transport {
-    async_buffered_transport(int fd, transport_handler<T> *ioh);
+    typedef typename T::async_transport transport;
+
+    async_buffered_transport(transport* tp, transport_handler<T> *ioh);
     ~async_buffered_transport();
     bool error() const {
         return tp_->ev_flags() == 0;
@@ -71,11 +73,10 @@ struct async_buffered_transport {
     bi::slist<outbuf, bi::constant_time_size<false>, bi::cache_last<true> > out_active_;
     bi::slist<outbuf, bi::constant_time_size<false>, bi::cache_last<false> > out_free_;
 
-    typedef typename T::async_transport transport;
     transport* tp_;
     transport_handler<T> *ioh_;
 
-    inline void event_handler(transport*, int e);
+    bool event_handler(transport*, int e);
     int fill(int* the_errno);
 
     void resize_inbuf(uint32_t size);
@@ -83,7 +84,7 @@ struct async_buffered_transport {
 };
 
 template <typename T>
-void async_buffered_transport<T>::event_handler(transport*, int e) {
+bool async_buffered_transport<T>::event_handler(transport*, int e) {
     int ok = 1;
     int the_errno = 0;
     if (e & ev::READ)
@@ -93,7 +94,9 @@ void async_buffered_transport<T>::event_handler(transport*, int e) {
     if (ok <= 0) {
 	tp_->eselect(0);
 	ioh_->handle_error(this, the_errno); // NB may delete `this`
+	return true;
     }
+    return false;
 }
 
 template <typename T>
@@ -116,9 +119,9 @@ uint8_t *async_buffered_transport<T>::reserve(uint32_t size) {
 }
 
 template <typename T>
-async_buffered_transport<T>::async_buffered_transport(int fd, transport_handler<T>* ioh)
+async_buffered_transport<T>::async_buffered_transport(transport* tp, transport_handler<T>* ioh)
     : in_(outbuf::make(1)), ioh_(ioh) {
-    tp_ = new transport(fd);
+    tp_ = tp;
     using std::placeholders::_1;
     using std::placeholders::_2;
     tp_->register_callback(

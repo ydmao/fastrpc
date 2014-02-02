@@ -29,10 +29,12 @@ struct spinlock {
 
 template <typename T>
 struct buffered_sync_transport {
-    buffered_sync_transport(int fd) 
-	: tp_(new T(fd)), in_(tp_, 65536), out_(tp_, 65536) {
+    typedef buffered_sync_transport<T> sync_transport;
+    typedef typename T::sync_transport child_transport;
+
+    buffered_sync_transport(child_transport* tp) 
+	: tp_(tp), in_(tp_, 65536), out_(tp_, 65536) {
 	assert(tp_ != NULL);
-	assert(fd >= 0);
     }
     ~buffered_sync_transport() {
 	delete tp_;
@@ -51,10 +53,18 @@ struct buffered_sync_transport {
 	return &out_;
     }
 
+    static sync_transport* make_sync(int fd) {
+	child_transport* tp = T::make_sync(fd);
+	sync_transport* st = NULL;
+	if (!(tp && (st = new sync_transport(tp))))
+	    close(fd);
+	return st;
+    }
+
   private:
-    T* tp_;
-    buffered_rpc_istream<T> in_;
-    buffered_rpc_ostream<T> out_;
+    child_transport* tp_;
+    buffered_rpc_istream<child_transport> in_;
+    buffered_rpc_ostream<child_transport> out_;
 };
 
 template <typename T>
@@ -87,9 +97,9 @@ struct sync_rpc_transport : public spinlock {
             if (fd < 0)
                 return false;
             rpc::common::sock_helper::make_nodelay(fd);
-	    conn_ = new T(fd);
+	    conn_ = T::make_sync(fd);
         }
-        return true;
+        return conn_ != NULL;
     }
     bool connected() const {
         return conn_;
@@ -159,7 +169,8 @@ struct sync_rpc_transport : public spinlock {
     }
   protected:
     tcp_provider* p_;
-    T* conn_;
+    typedef typename T::sync_transport child_transport;
+    child_transport* conn_;
     int cid_;
 };
 }

@@ -5,11 +5,9 @@
 
 namespace rpc {
 
+struct tcpnet;
+
 struct socket_wrapper {
-    socket_wrapper(int fd) : fd_(fd) {
-        rpc::common::sock_helper::make_nodelay(fd_);
-	assert(fd >= 0);
-    }
     ~socket_wrapper() {
 	::close(fd_);
     }
@@ -23,14 +21,17 @@ struct socket_wrapper {
 	::shutdown(fd_, SHUT_RDWR);
     }
   protected:
+    friend class tcpnet;
+    socket_wrapper(int fd) : fd_(fd) {
+        rpc::common::sock_helper::make_nodelay(fd_);
+	assert(fd >= 0);
+    }
+
     int fd_;
 };
 
 // async_tcp
 struct async_tcp : public socket_wrapper {
-    async_tcp(int fd) : socket_wrapper(fd), ev_flags_(0) {
-        rpc::common::sock_helper::make_nonblock(fd_);
-    }
     typedef std::function<void(async_tcp*, int)> event_handler_type;
 
     void register_callback(event_handler_type cb, int flags) {
@@ -47,6 +48,12 @@ struct async_tcp : public socket_wrapper {
     int ev_flags() const {
 	return ev_flags_;
     }
+  protected:
+    friend class tcpnet;
+    async_tcp(int fd) : socket_wrapper(fd), ev_flags_(0) {
+        rpc::common::sock_helper::make_nonblock(fd_);
+    }
+
   private:
     void event_handler(ev::io&, int e) {
         int flags = e & ev_flags_;
@@ -68,6 +75,19 @@ struct async_tcp : public socket_wrapper {
 struct tcpnet {
     typedef socket_wrapper sync_transport;
     typedef async_tcp async_transport;
+    template <typename T>
+    static T* make(int fd) {
+	T* c = new T(fd);
+	if (!c)
+	    close(fd);
+	return c;
+    }
+    static sync_transport* make_sync(int fd) {
+	return make<sync_transport>(fd);
+    }
+    static async_transport* make_async(int fd) {
+	return make<async_transport>(fd);
+    }
 };
 
 }
