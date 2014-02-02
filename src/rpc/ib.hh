@@ -670,18 +670,19 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
         assert(!blocking() && sw_);
 	bool dispatched = false;
         ibdbg("drain: dispatch before querying for CQE\n");
-        while (likely(!closed())) {
+	bool deleted = false;
+        while (!deleted) {
             int flags = readable() ? ev::READ : 0;
             flags |= writable() ? ev::WRITE : 0;
             int interest = flags & flags_;
             if (unlikely(!interest))
     	        break;
 	    dispatched = true;
-	    assert(!cb_(this, interest));
+	    deleted = cb_(this, interest);
         }
-	if (unlikely(closed())) {
-	    assert(cb_(this, ev::READ));
-	    return true;
+	if (!deleted && unlikely(closed())) {
+	    deleted = cb_(this, ev::READ);
+	    dispatched = true;
 	}
         return dispatched;
     }
