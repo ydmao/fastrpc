@@ -443,6 +443,7 @@ struct infb_conn {
 	    return -1;
 	}
 	fd_ = fd;
+	rpc::common::sock_helper::peerinfo(fd, peerhost_, peerport_);
 	// XXX: Sometimes I got IBV_EVENT_COMM_EST event,
 	// which seems to related to system hangs.
 	// I don't know how to handle IBV_EVENT_COMM_EST.
@@ -519,7 +520,8 @@ struct infb_conn {
 	    return -1;
 	for (int i = 0; i < ne; ++i) {
 	    if (wc[i].status != IBV_WC_SUCCESS) {
-		fprintf(stderr, "poll failed with status: %d\n", wc[i].status);
+		fprintf(stderr, "poll %s:%d failed with status: %d\n",
+			peerhost_.c_str(), peerport_, wc[i].status);
 		return -1;
 	    }
 	    f(wc[i]);
@@ -654,6 +656,8 @@ struct infb_conn {
 
     int fd_;
     std::atomic<bool> error_; // used by synchronous infb_conn to detect error
+    std::string peerhost_;
+    int peerport_;
 };
 
 struct infb_async_conn : public infb_conn, public edge_triggered_channel {
