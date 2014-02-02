@@ -83,7 +83,7 @@ struct infb_provider {
 	if (!init) {
 	    std::lock_guard<std::mutex> lk(mu);
 	    if (!init) {
-	        ibv_fork_init();
+	        assert(ibv_fork_init() == 0);
 	        init = true;
 	    }
 	}
