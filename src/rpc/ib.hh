@@ -749,7 +749,7 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
     }
     void hard_select(int flags) {
 	if (flags)
-	    sw_->start(schan_->fd, flags);
+	    sw_->start(schan_->fd, ev::READ);
 	else
 	    sw_->stop();
 	flags_ = flags;
