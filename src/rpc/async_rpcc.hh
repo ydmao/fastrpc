@@ -31,8 +31,10 @@ class async_rpcc : public transport_handler<T> {
     inline bool connect() {
 	mandatory_assert(c_ == NULL);
 	int fd = tcpp_->connect();
-        if (fd < 0)
+        if (fd < 0) {
+	    fprintf(stderr, "async_rpcc: failed to connect\n");
             return false;
+	}
 	typedef typename T::async_transport transport;
 	transport* tp = T::template make<transport>(fd);
 	if (tp)

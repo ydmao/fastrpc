@@ -382,10 +382,14 @@ struct infb_conn {
     int connect(int fd) {
 	assert(fd >= 0);
 	//local_.dump(stdout);
-        if (::write(fd, &local_, sizeof(local_)) != sizeof(local_))
+        if (::write(fd, &local_, sizeof(local_)) != sizeof(local_)) {
+	    perror("write");
 	    return -1;
-        if (::read(fd, &remote_, sizeof(remote_)) != sizeof(remote_))
+	}
+        if (::read(fd, &remote_, sizeof(remote_)) != sizeof(remote_)) {
+	    perror("read");
 	    return -1;
+	}
 	//remote_.dump(stdout);
 
 	ibv_qp_attr attr;
@@ -438,6 +442,12 @@ struct infb_conn {
 	    return -1;
 	}
 	fd_ = fd;
+	// XXX: Sometimes I got IBV_EVENT_COMM_EST event,
+	// which seems to related to system hangs.
+	// I don't know how to handle IBV_EVENT_COMM_EST.
+	// It seems sleep a little bit could prevent the
+	// event from being generated.
+	usleep(100); 
 	return 0;
     }
     bool readable() const {
