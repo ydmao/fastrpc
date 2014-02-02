@@ -147,7 +147,9 @@ struct infb_provider {
 			perror("ibv_get_async_event");
 			exit(1);
 		    }
-		    fprintf(stderr, "got event %d\n", e.event_type);
+		    fprintf(stderr, "got event %d, %s\n", 
+			    e.event_type, ibv_event_type_str(e.event_type));
+		    ibv_ack_async_event(&e);
 		}
 	    });
 	CHECK(ibv_query_device(c_, &attr_) == 0);
