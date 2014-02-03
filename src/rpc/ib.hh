@@ -482,6 +482,10 @@ struct infb_conn {
 	    } else
 	        assert(FD_ISSET(chan->fd, &rfds));
 	}
+	// The readable event could be a false positive!
+	// For events arrives after ibv_req_notify_cq
+	// but before ibv_cq_poll, chan->fd will be
+	// readable but no corresnponding CQE in the cq.
         ibv_cq* cq;
 	void* ctx;
 	if (ibv_get_cq_event(chan, &cq, &ctx)) {
@@ -515,9 +519,9 @@ struct infb_conn {
 	int n = 0;
 	do {
 	    CHECK((ne = ibv_poll_cq(cq, cq->cqe, wc)) >= 0);
-	    if (++n % 10000 == 0)
+	    if ((++n % 1000) == 0 && type_ == INFB_CONN_POLL)
 		check_error();
-	} while (blocking() && ne < 1 && likely(!error_));
+	} while (type_ == INFB_CONN_POLL && ne < 1 && likely(!error_));
 	if (unlikely(error_))
 	    return -1;
 	for (int i = 0; i < ne; ++i) {
@@ -535,23 +539,36 @@ struct infb_conn {
 	return 0;
     }
     int real_read() {
-	if (type_ == INFB_CONN_INT)
-	    wait_channel(rchan_);
-	auto f = [&](const ibv_wc& wc) {
-	   	assert(recv_request(wc.wr_id));
-		pending_read_.push(refcomp::str((const char*)wc.wr_id, wc.byte_len));
-	    };
-	return poll(rcq_, f);
+	int r = 0;
+	// if blocking, loop until readable or error
+	while (!readable() && !error_ && !closed()) {
+	    if (type_ == INFB_CONN_INT)
+	        wait_channel(rchan_); // wait and check error
+	    auto f = [&](const ibv_wc& wc) {
+	   	    assert(recv_request(wc.wr_id));
+		    pending_read_.push(refcomp::str((const char*)wc.wr_id, wc.byte_len));
+	        };
+	    r = poll(rcq_, f);
+	    if (!blocking())
+		break;
+	}
+	return r;
     }
     int real_write() {
-	if (type_ == INFB_CONN_INT)
-	    wait_channel(schan_);
-	auto f = [&](const ibv_wc& wc) {
-	        if (non_inline_send_request(wc.wr_id))
-	            wbuf_extend(wc.byte_len);
-		--nw_;
-	    };
-	return poll(scq_, f);
+	int r = 0;
+	while (!writable() && !error_ && !closed()) {
+	    if (type_ == INFB_CONN_INT)
+	        wait_channel(schan_); // wait and check error
+   	    auto f = [&](const ibv_wc& wc) {
+	            if (non_inline_send_request(wc.wr_id))
+	                wbuf_extend(wc.byte_len);
+		    --nw_;
+	        };
+	    r = poll(scq_, f);
+	    if (!blocking())
+		break;
+	}
+	return r;
     }
 
     ibv_cq* create_cq(ibv_comp_channel* chan, int depth) {
