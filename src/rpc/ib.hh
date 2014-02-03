@@ -37,7 +37,6 @@ inline void ibdbg(const char* fmt, ...) {
 
 struct infb_conn;
 struct ibnet;
-struct infb_factory;
 
 template <typename A, typename B>
 inline A round_down(A a, B b) {
@@ -525,6 +524,8 @@ struct infb_conn {
 	int ne;
 	int n = 0;
 	do {
+	    if (n > 0 && type_ == INFB_CONN_POLL)
+		sched_yield();
 	    CHECK((ne = ibv_poll_cq(cq, cq->cqe, wc)) >= 0);
 	    if ((++n % 1000) == 0 && type_ == INFB_CONN_POLL)
 		check_error();
@@ -759,7 +760,6 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
     }
   protected:
     friend class ibnet;
-    friend class infb_factory;
     infb_async_conn()
         : infb_conn(INFB_CONN_ASYNC, infb_provider::default_instance()), flags_(0), sw_(NULL) {
     }
@@ -798,7 +798,6 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
 struct infb_poll_conn : public infb_conn {
   protected:
     friend class ibnet;
-    friend class infb_factory;
     infb_poll_conn() 
         : infb_conn(INFB_CONN_POLL, infb_provider::default_instance()) {
     }
@@ -807,7 +806,6 @@ struct infb_poll_conn : public infb_conn {
 struct infb_int_conn : public infb_conn {
   protected:
     friend class ibnet;
-    friend class infb_factory;
     infb_int_conn()
         : infb_conn(INFB_CONN_INT, infb_provider::default_instance()) {
     }
