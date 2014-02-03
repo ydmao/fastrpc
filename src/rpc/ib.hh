@@ -837,26 +837,16 @@ struct ibnet {
 
 struct infb_factory {
     static infb_conn* create(infb_conn_type type, int fd) {
-        infb_conn* c = NULL;
         switch (type) {
         case INFB_CONN_POLL:
-	    c = new infb_poll_conn();
-    	    break;
+	    return ibnet::make<infb_poll_conn>(fd);
         case INFB_CONN_INT:
-	    c = new infb_int_conn();
-    	    break;
+	    return ibnet::make<infb_int_conn>(fd);
         case INFB_CONN_ASYNC:
-  	    c = new infb_async_conn();
-   	    break;
+	    return ibnet::make<infb_async_conn>(fd);
         default:
 	    assert(0 && "infb_create: bad type");
         };
-        if (c && c->create() == 0 && c->connect(fd) == 0)
-            return c;
-        else {
-            if (c) delete c;
-            return NULL;
-        }
     }
 };
 
