@@ -370,6 +370,12 @@ struct infb_conn {
 	    size_t n = std::min(len - r, wbuf_.length());
 	    if (wbuf_.data() + n > wbuf_end())
 		n = uintptr_t(wbuf_end() - wbuf_.data());
+	    // XXX: the size of a post message must fit in the 
+	    // recv buffer posted on the other side, which is
+	    // mtub_ currently. 
+	    // XXX and TODO: how to determine such size? performance
+	    // impact?
+	    n = std::min(n, mtub_);
 	    memcpy(wbuf_.s_, (const char*)buf + r, n);
 	    if (post_send_with_buffer(wbuf_.data(), n, IBV_SEND_SIGNALED) != 0) {
 		errno = EIO;
