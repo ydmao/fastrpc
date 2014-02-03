@@ -364,6 +364,8 @@ struct infb_conn {
 	ssize_t r = 0;
 	while (r < ssize_t(len) && wbuf_.length()) {
 	    size_t n = std::min(len - r, wbuf_.length());
+	    if (wbuf_.data() + n > wbuf_end())
+		n = uintptr_t(wbuf_end() - wbuf_.data());
 	    memcpy(wbuf_.s_, (const char*)buf + r, n);
 	    if (post_send_with_buffer(wbuf_.data(), n, IBV_SEND_SIGNALED) != 0) {
 		errno = EIO;
