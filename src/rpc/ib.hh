@@ -303,14 +303,15 @@ struct infb_conn {
     }
 
     ssize_t read(void* buf, size_t len) {
-	// allow reads if readable, even if there is error on it
-	if (!readable() && (closed() || error_)) {
-	    errno = EIO;
-	    return -1;
-	}
 	assert(len > 0);
 	if (!readable()) {
-	    if (!blocking()) {
+	    if (error_) {
+		errno = EIO;
+		return -1;
+	    } else if (!blocking()) {
+		// for non-blocking connection, 
+		// we don't really read here, 
+		// but in infb_async_conn.
 	        errno = EWOULDBLOCK;
 	        return -1;
 	    }
@@ -319,7 +320,8 @@ struct infb_conn {
 		errno = EIO;
 	        return -1;
 	    }
-	}
+	} // otherwise, allow reads if it has remaining 
+	  // bytes in the buffer, even if there is error on it
 	size_t r = 0;
 	while (r < len && !pending_read_.empty()) {
 	    refcomp::str& rx = pending_read_.front();
@@ -336,7 +338,9 @@ struct infb_conn {
     }
 
     ssize_t write(const void* buf, size_t len) {
-	if (closed() || error_) {
+	// disallow writes on error. This is OK because
+	// we don't need half-closed connection right now.
+	if (error_) {
 	    errno = EIO;
 	    return -1;
 	}
@@ -462,9 +466,6 @@ struct infb_conn {
     }
 
   protected:
-    bool closed() const {
-	return fd_ < 0;
-    }
     ibv_cq* wait_channel(ibv_comp_channel* chan) {
 	if (unlikely(error_))
 	    return NULL;
@@ -541,7 +542,7 @@ struct infb_conn {
     int real_read() {
 	int r = 0;
 	// if blocking, loop until readable or error
-	while (!readable() && !error_ && !closed()) {
+	while (!readable() && !error_) {
 	    if (type_ == INFB_CONN_INT)
 	        wait_channel(rchan_); // wait and check error
 	    auto f = [&](const ibv_wc& wc) {
@@ -556,7 +557,7 @@ struct infb_conn {
     }
     int real_write() {
 	int r = 0;
-	while (!writable() && !error_ && !closed()) {
+	while (!writable() && !error_) {
 	    if (type_ == INFB_CONN_INT)
 	        wait_channel(schan_); // wait and check error
    	    auto f = [&](const ibv_wc& wc) {
@@ -707,7 +708,7 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
 	    dispatched = true;
 	    deleted = cb_(this, interest);
         }
-	if (!deleted && unlikely(closed())) {
+	if (!deleted && unlikely(error_)) {
 	    deleted = cb_(this, ev::READ);
 	    dispatched = true;
 	}
@@ -759,9 +760,14 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
 
   private:
     void real_close() {
+	// we perform a close on the fd once
+	// we detected the error. This allows
+	// us to handle disconnecting from either
+	// side of the connection in the same way.
 	//printf("real_close: %d\n", fd_);
 	if (fd_ < 0)
 	    return;
+	error_ = true;
 	// stop sw_
 	hard_select(0);
 
