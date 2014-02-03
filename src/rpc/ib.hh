@@ -525,7 +525,7 @@ struct infb_conn {
 	int n = 0;
 	do {
 	    if (n > 0 && type_ == INFB_CONN_POLL)
-		sched_yield();
+		usleep(0); // sleep a timer slack
 	    CHECK((ne = ibv_poll_cq(cq, cq->cqe, wc)) >= 0);
 	    if ((++n % 1000) == 0 && type_ == INFB_CONN_POLL)
 		check_error();
