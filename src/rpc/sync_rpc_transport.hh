@@ -28,6 +28,71 @@ struct spinlock {
 };
 
 template <typename T>
+struct direct_sync_transport : public rpc_istream_base, public rpc_ostream_base {
+    typedef direct_sync_transport<T> sync_transport;
+    typedef typename T::sync_transport child_transport;
+
+    direct_sync_transport(child_transport* tp) : tp_(tp) {
+	assert(tp_ != NULL);
+    }
+    ~direct_sync_transport() {
+	delete tp_;
+    }
+    bool flush() {
+	return true;
+    }
+    void shutdown() {
+	flush();
+	tp_->shutdown();
+    }
+    rpc_istream_base* in() {
+	return this;
+    }
+    rpc_ostream_base* out() {
+	return this;
+    }
+    bool read(void* buffer, size_t len) {
+	ssize_t off = 0;
+	while (off < len) {
+	    int cc = tp_->read((char*)buffer + off, len - off);
+	    if (cc <= 0) {
+	     	if (errno == EINTR)
+		    continue;
+		else   
+		    return false;
+	    }
+	    off += cc;
+	}
+	return true;
+    }
+    bool write(const void* buffer, size_t len) {
+	ssize_t off = 0;
+	while (off < len) {
+	    int cc = tp_->write((char*)buffer + off, len - off);
+	    if (cc <= 0) {
+	     	if (errno == EINTR)
+		    continue;
+		else
+		    return false;
+	    }
+	    off += cc;
+	}
+	return true;
+    }
+    static sync_transport* make_sync(int fd) {
+	child_transport* tp = T::make_sync(fd);
+	sync_transport* st = NULL;
+	if (!(tp && (st = new sync_transport(tp))))
+	    close(fd);
+	return st;
+    }
+
+  private:
+    child_transport* tp_;
+};
+
+
+template <typename T>
 struct buffered_sync_transport {
     typedef buffered_sync_transport<T> sync_transport;
     typedef typename T::sync_transport child_transport;
