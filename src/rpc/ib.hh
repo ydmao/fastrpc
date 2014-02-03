@@ -456,7 +456,7 @@ struct infb_conn {
 	return !pending_read_.empty();
     }
     bool writable(size_t len = 0) const {
-	return nw_ < scq_->cqe && ((len > 0 && len < max_inline_size_) || wbuf_.length());
+	return nw_ < (scq_->cqe/2) && ((len > 0 && len < max_inline_size_) || wbuf_.length());
     }
 
   protected:
@@ -520,8 +520,12 @@ struct infb_conn {
 	    return -1;
 	for (int i = 0; i < ne; ++i) {
 	    if (wc[i].status != IBV_WC_SUCCESS) {
-		fprintf(stderr, "poll %s:%d failed with status: %d\n",
-			peerhost_.c_str(), peerport_, wc[i].status);
+		fprintf(stderr, "poll %s:%d (%s queue, type %d) failed with status: %d\n",
+			peerhost_.c_str(), peerport_, 
+			(cq == scq_) ? "send" : "read",
+			type_,
+			wc[i].status);
+		print_stacktrace();
 		return -1;
 	    }
 	    f(wc[i]);
