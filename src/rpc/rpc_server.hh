@@ -129,14 +129,15 @@ struct threaded_rpc_server {
         rpc_header h;
         std::string body;
         while (true) {
-            if (!sm.read_hard((char*)&h, sizeof(h)))
+            if (!sm.hard_read((char*)&h, sizeof(h)))
                 return;
             body.resize(h.payload_length());
-            if (!sm.read_hard(&body[0], h.payload_length()))
+            if (!sm.hard_read(&body[0], h.payload_length()))
                 return;
             auto s = sp_[h.proc()];
             mandatory_assert(s);
             s->dispatch_sync(h, body, &sm, rpc::common::tstamp());
+	    sm.flush();
         }
     }
 
