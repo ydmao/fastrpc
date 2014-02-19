@@ -191,7 +191,6 @@ struct infb_conn {
 	qp_ = NULL;
 	schan_ = rchan_ = NULL;
     }
-
     bool blocking() const {
 	return type_ != INFB_CONN_ASYNC;
     }
@@ -297,8 +296,10 @@ struct infb_conn {
 	    CHECK(ibv_destroy_comp_channel(rchan_) == 0);
 	if (schan_ != rchan_)
 	    CHECK(ibv_destroy_comp_channel(schan_) == 0);
-	if (fd_ >= 0)
+	if (fd_ >= 0) {
 	    close(fd_);
+	    fd_ = -1;
+	}
     }
 
     ssize_t read(void* buf, size_t len) {
@@ -816,14 +817,14 @@ struct ibnet {
     template <typename T>
     static T* make(int fd) {
 	T* c = new T();
-	if (!(c && c->create() == 0 && c->connect(fd) == 0)) {
-	    if (c) { 
-		delete c; 
-	        c = NULL;
-	    }
+	if (c && c->create() == 0 && c->connect(fd) == 0)
+	    return c;
+	// bad
+	if (c)
+	    delete c;
+	else
 	    close(fd);
-        }
-	return c;
+	return NULL;
     }
     static sync_transport* make_sync(int fd) {
 	return make<sync_transport>(fd);

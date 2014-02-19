@@ -82,9 +82,11 @@ struct direct_sync_transport : public rpc_istream_base, public rpc_ostream_base 
     static sync_transport* make_sync(int fd) {
 	child_transport* tp = T::make_sync(fd);
 	sync_transport* st = NULL;
-	if (!(tp && (st = new sync_transport(tp))))
-	    close(fd);
-	return st;
+	if (tp && (st = new sync_transport(tp)))
+	    return st;
+	if (tp)
+	    delete tp;
+	return NULL;
     }
 
   private:
@@ -121,9 +123,11 @@ struct buffered_sync_transport {
     static sync_transport* make_sync(int fd) {
 	child_transport* tp = T::make_sync(fd);
 	sync_transport* st = NULL;
-	if (!(tp && (st = new sync_transport(tp))))
-	    close(fd);
-	return st;
+	if (tp && (st = new sync_transport(tp)))
+	    return st;
+	if (tp)
+	    delete tp;
+	return NULL;
     }
 
   private:
