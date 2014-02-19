@@ -397,10 +397,12 @@ struct infb_conn {
 	//local_.dump(stdout);
         if (::write(fd, &local_, sizeof(local_)) != sizeof(local_)) {
 	    perror("write");
+	    close(fd);
 	    return -1;
 	}
         if (::read(fd, &remote_, sizeof(remote_)) != sizeof(remote_)) {
 	    perror("read");
+	    close(fd);
 	    return -1;
 	}
 	//remote_.dump(stdout);
