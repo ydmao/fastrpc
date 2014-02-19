@@ -77,7 +77,7 @@ kvin::reallyread()
   assert(wanted > 0 && i1 + wanted <= len);
   int cc;
   while(true) {
-    cc = ::read(fd, buf + i1, wanted);
+    cc = ::read(fd, buf + i1, len - i1);
     if(cc < 0) {
       if (errno == EAGAIN || errno == EWOULDBLOCK)
         continue;
