@@ -16,7 +16,7 @@ OBJECTS := $(addprefix $(OBJDIR)/,$(OBJECTS))
 
 CXX=g++
 
-$(OBJDIR)/%.o: $(SRCDIR)/rpc_common/%.cc config.h $(PROTO_HDR)
+$(OBJDIR)/%.o: $(SRCDIR)/rpc_common/%.cc config.h
 	mkdir -p $(DEPS) $(OBJDIR)
 	$(CXX) $(CXXFLAGS) -c $(DEPCFLAGS) $< -o $@
 
