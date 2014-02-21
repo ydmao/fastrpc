@@ -2,6 +2,7 @@
 #include <functional>
 #include <ev++.h>
 #include "rpc_common/sock_helper.hh"
+#include "rpc_util/tcpfds.hh"
 
 namespace rpc {
 
@@ -73,6 +74,9 @@ struct async_tcp : public socket_wrapper {
 };
 
 struct tcpnet {
+    template <typename T>
+    using select_provider = epoll_tcpfds<T>;
+
     typedef socket_wrapper sync_transport;
     typedef async_tcp async_transport;
     template <typename T>
