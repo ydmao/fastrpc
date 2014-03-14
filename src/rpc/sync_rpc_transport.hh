@@ -100,7 +100,7 @@ struct buffered_sync_transport {
     typedef typename T::sync_transport child_transport;
 
     buffered_sync_transport(child_transport* tp) 
-	: tp_(tp), in_(tp_, 65536), out_(tp_, 65536) {
+	: tp_(tp), in_(tp_, 1<<20), out_(tp_, 1<<20) {
 	assert(tp_ != NULL);
     }
     ~buffered_sync_transport() {
