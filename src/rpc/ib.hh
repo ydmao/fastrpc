@@ -814,7 +814,11 @@ struct infb_int_conn : public infb_conn {
     }
 };
 struct ibnet {
+#if IB_SYNC_POLL
     typedef infb_poll_conn sync_transport;
+#else
+    typedef infb_int_conn sync_transport;
+#endif
     typedef infb_async_conn async_transport;
     template <typename T>
     static T* make(int fd) {
