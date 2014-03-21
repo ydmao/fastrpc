@@ -474,23 +474,30 @@ struct infb_conn {
     }
 
   protected:
-    ibv_cq* wait_channel(ibv_comp_channel* chan) {
+    // blocking wait. We must check chan->fd and fd_ at the same
+    // time. Otherwise, if the channel is closed without any data,
+    // we would block forever.
+    ibv_cq* wait_channel_or_error(ibv_comp_channel* chan) {
 	if (unlikely(error_))
 	    return NULL;
-	if (blocking()) {
-	    // wait until readable
-	    fd_set rfds;
-            FD_ZERO(&rfds);
-            FD_SET(fd_, &rfds);
-	    FD_SET(chan->fd, &rfds);
-	    const int nfds = std::max(fd_, chan->fd) + 1;
-            select(nfds, &rfds, NULL, NULL, NULL);
-            if (unlikely(FD_ISSET(fd_, &rfds))) {
-	        error_ = true;
-		return NULL;
-	    } else
-	        assert(FD_ISSET(chan->fd, &rfds));
-	}
+	assert(blocking());
+	// wait until readable or error
+	fd_set rfds;
+        FD_ZERO(&rfds);
+        FD_SET(fd_, &rfds);
+	FD_SET(chan->fd, &rfds);
+	const int nfds = std::max(fd_, chan->fd) + 1;
+        select(nfds, &rfds, NULL, NULL, NULL);
+        if (unlikely(FD_ISSET(fd_, &rfds))) {
+	    error_ = true;
+	    return NULL;
+	} else
+	    assert(FD_ISSET(chan->fd, &rfds));
+	return check_channel(chan);
+    }
+    ibv_cq* check_channel(ibv_comp_channel* chan) {
+	if (unlikely(error_))
+	    return NULL;
 	// The readable event could be a false positive!
 	// For events arrives after ibv_req_notify_cq
 	// but before ibv_cq_poll, chan->fd will be
@@ -506,6 +513,7 @@ struct infb_conn {
 	CHECK(ibv_req_notify_cq(cq, 0) == 0);
 	return cq;
     }
+    // non-blocking check
     bool check_error() {
 	if (error_)
 	    return true;
@@ -554,7 +562,7 @@ struct infb_conn {
 	// if blocking, loop until readable or error
 	while (!readable() && !error_) {
 	    if (type_ == INFB_CONN_INT)
-	        wait_channel(rchan_); // wait and check error
+	        wait_channel_or_error(rchan_); // wait and check error
 	    auto f = [&](const ibv_wc& wc) {
 	   	    assert(recv_request(wc.wr_id));
 		    pending_read_.push(refcomp::str((const char*)wc.wr_id, wc.byte_len));
@@ -569,7 +577,7 @@ struct infb_conn {
 	int r = 0;
 	while (!writable() && !error_) {
 	    if (type_ == INFB_CONN_INT)
-	        wait_channel(schan_); // wait and check error
+	        wait_channel_or_error(schan_); // wait and check error
    	    auto f = [&](const ibv_wc& wc) {
 	            if (non_inline_send_request(wc.wr_id))
 	                wbuf_extend(wc.byte_len);
@@ -726,7 +734,7 @@ struct infb_async_conn : public infb_conn, public edge_triggered_channel {
     }
 
     void poll_channel(ev::io& w, int) {
-	ibv_cq* cq = wait_channel(schan_);
+	ibv_cq* cq = check_channel(schan_);
 	if (cq == scq_)
 	    real_write();
 	else
