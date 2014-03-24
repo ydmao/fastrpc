@@ -24,7 +24,7 @@ template <typename T>
 class async_rpcc : public transport_handler<T> {
   public:
     async_rpcc(tcp_provider* tcpp,
-	       rpc_handler<T>* rh, int cid, bool force_connected,
+	       rpc_handler<T>* rh, bool force_connected,
 	       proc_counters<app_param::nproc, true> *counts = 0);
 
     virtual ~async_rpcc();
@@ -76,7 +76,6 @@ class async_rpcc : public transport_handler<T> {
     rpc_handler<T>* rh_;
     int noutstanding_;
     proc_counters<app_param::nproc, true> *counts_;
-    int cid_;
 
     void expand_waiting();
 
@@ -113,7 +112,6 @@ inline void async_rpcc<T>::write_request(uint32_t proc, uint32_t seq, M& message
     h->set_payload_length(req_sz, true);
     h->seq_ = seq;
     h->set_mproc(rpc_header::make_mproc(proc, 0));
-    h->cid_ = cid_;
     message.SerializeToArray(x + sizeof(*h), req_sz);
     ++noutstanding_;
     if (counts_)
@@ -135,7 +133,6 @@ void async_rpcc<T>::write_reply(uint32_t proc, uint32_t seq, M& message, uint64_
     h->set_mproc(rpc_header::make_mproc(proc, 0)); // not needed, by better to shut valgrind up
     h->set_payload_length(reply_sz, false);
     h->seq_ = seq;
-    h->cid_ = cid_;
     message.SerializeToArray(x + sizeof(*h), reply_sz);
     if (counts_) {
 	counts_->add(proc, count_sent_reply, sizeof(rpc_header) + reply_sz);
@@ -145,11 +142,11 @@ void async_rpcc<T>::write_reply(uint32_t proc, uint32_t seq, M& message, uint64_
 
 template <typename T>
 async_rpcc<T>::async_rpcc(tcp_provider* tcpp, 
-		       rpc_handler<T>* rh, int cid, bool force_connected,
+		       rpc_handler<T>* rh, bool force_connected,
 		       proc_counters<app_param::nproc, true> *counts)
     : caller_arg_(), tcpp_(tcpp), c_(NULL),
       waiting_(new gcrequest_base *[1024]), waiting_capmask_(1023), 
-      seq_(random() / 2), rh_(rh), noutstanding_(0), counts_(counts), cid_(cid) {
+      seq_(random() / 2), rh_(rh), noutstanding_(0), counts_(counts) {
     bzero(waiting_, sizeof(gcrequest_base *) * 1024);
     if (force_connected)
 	mandatory_assert(connect());

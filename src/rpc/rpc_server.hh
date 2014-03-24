@@ -29,7 +29,7 @@ struct async_rpc_server : public rpc_handler<T> {
     }
 
     async_rpcc<T>* register_rpcc(int fd) {
-        async_rpcc<T> *c = new async_rpcc<T>(new onetime_tcpp(fd), this, random(), true, &opcount_);
+        async_rpcc<T> *c = new async_rpcc<T>(new onetime_tcpp(fd), this, true, &opcount_);
         mandatory_assert(c);
         clients_.push_back(c);
         return c;

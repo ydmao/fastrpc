@@ -138,13 +138,13 @@ struct buffered_sync_transport {
 
 template <typename T>
 struct sync_rpc_transport : public spinlock {
-    sync_rpc_transport() : p_(NULL), conn_(NULL), cid_(0) {
+    sync_rpc_transport() : p_(NULL), conn_(NULL) {
     }
-    sync_rpc_transport(const std::string& h, int port) : conn_(NULL), cid_(0) {
+    sync_rpc_transport(const std::string& h, int port) : conn_(NULL) {
 	p_ = NULL;
 	set_address(h, port, "0.0.0.0");
     }
-    sync_rpc_transport(int fd) : conn_(NULL), cid_(0) {
+    sync_rpc_transport(int fd) : conn_(NULL) {
 	p_ = new onetime_tcpp(fd);
 	connect();
     }
@@ -188,6 +188,12 @@ struct sync_rpc_transport : public spinlock {
 	    return false;
 	return conn_->in()->read((char*)buffer, len);
     }
+    template <typename M>
+    bool read_message(M& m) {
+	if (!connected())
+	    return false;
+	return m.ParseFromStream(*conn_->in());
+    }
     bool safe_flush() {
 	this->lock();
 	bool ok = flush();
@@ -202,7 +208,7 @@ struct sync_rpc_transport : public spinlock {
 	    this->unlock();
 	    return false;
 	}
-	bool ok = rpc::send_reply(conn_->out(), h.mproc(), h.seq_, h.cid_, r);
+	bool ok = rpc::send_reply(conn_->out(), h.mproc(), h.seq_,  r);
 	if (ok && doflush)
 	    ok = flush();
 	this->unlock();
@@ -218,7 +224,7 @@ struct sync_rpc_transport : public spinlock {
     bool send_request(PROC proc, uint32_t seq, const M& m, bool doflush) {
 	if (!connected())
 	    return false;
-	bool ok = rpc::send_request(conn_->out(), proc, seq, cid_, m);
+	bool ok = rpc::send_request(conn_->out(), proc, seq, m);
 	if (ok && doflush)
 	    conn_->flush();
 	return ok;
@@ -227,7 +233,7 @@ struct sync_rpc_transport : public spinlock {
     bool write_reply(PROC mproc, int seq, const REPLY& r, uint64_t /*latency*/) {
 	if (!connected())
 	    return false;
-	bool ok = rpc::send_reply(conn_->out(), mproc, seq, cid_, r);
+	bool ok = rpc::send_reply(conn_->out(), mproc, seq, r);
 	if (ok && /*doflush*/false)
 	    flush();
 	return ok;
@@ -236,15 +242,19 @@ struct sync_rpc_transport : public spinlock {
     bool sync_call(uint32_t seq, PROC proc, const M& req, REPLY& r) {
 	if (!connected())
 	    return false;
-	return rpc::sync_call(conn_->out(), conn_->in(), cid_, seq, proc, req, r);
+	return rpc::sync_call(conn_->out(), conn_->in(), seq, proc, req, r);
     }
     bool flush() {
 	if (!connected())
 	    return false;
 	return conn_->flush();
     }
-    void set_rpc_clientid(int cid) {
+    // using cid or not depends on the subclass.
+    void set_cid(int cid) {
 	cid_ = cid;
+    }
+    int cid() {
+	return cid_;
     }
   protected:
     tcp_provider* p_;

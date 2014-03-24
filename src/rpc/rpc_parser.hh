@@ -37,7 +37,6 @@ struct rpc_header {
     uint32_t len_;
   public:
     uint32_t seq_;
-    uint32_t cid_; // client id
   private:
     uint32_t proc_; // used by request only
 };
