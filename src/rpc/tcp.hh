@@ -92,6 +92,9 @@ struct tcpnet {
     static async_transport* make_async(int fd) {
 	return make<async_transport>(fd);
     }
+    static void set_poll_interval(int) {
+	// nothing to do. We don't use TCP in polling mode
+    }
 };
 
 }

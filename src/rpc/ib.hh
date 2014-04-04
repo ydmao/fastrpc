@@ -529,6 +529,13 @@ struct infb_conn {
 	return error_;
     }
 
+    static int poll_interval(int microseconds) {
+	static int nusleep = 0;
+	if (microseconds >= 0)
+	    nusleep = microseconds;
+	return nusleep;
+    }
+
     template <typename F>
     int poll(ibv_cq* cq, F f) {
 	ibv_wc wc[cq->cqe];
@@ -536,7 +543,7 @@ struct infb_conn {
 	int n = 0;
 	do {
 	    if (n > 0 && type_ == INFB_CONN_POLL)
-		usleep(0); // sleep a timer slack
+		usleep(poll_interval(-1)); // sleep an poll interval plus a timer slack(1us)
 	    CHECK((ne = ibv_poll_cq(cq, cq->cqe, wc)) >= 0);
 	    if ((++n % 1000) == 0 && type_ == INFB_CONN_POLL)
 		check_error();
@@ -845,6 +852,9 @@ struct ibnet {
     }
     static async_transport* make_async(int fd) {
 	return make<async_transport>(fd);
+    }
+    static void set_poll_interval(int microseconds) {
+	infb_conn::poll_interval(microseconds);
     }
 };
 
