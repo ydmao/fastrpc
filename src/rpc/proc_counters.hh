@@ -40,7 +40,7 @@ template <unsigned NPROC> struct proc_counters<NPROC, true> {
     inline void print(FILE* fp) {
 	fprintf(fp, "%20s %10s %10s\n",
 	        "proc", "request", "time/req");
-	for (int32_t i = 0; i < NPROC; ++i) {
+	for (uint32_t i = 0; i < NPROC; ++i) {
 	    if (c_[i].count[count_sent_reply] == 0 &&
 		c_[i].count[count_recv_request] == 0)
 	        continue;

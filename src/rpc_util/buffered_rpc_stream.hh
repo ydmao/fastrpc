@@ -24,10 +24,10 @@ struct buffered_rpc_istream : public rpc_istream_base {
     // read exactly n bytes.
     bool read(void* xbuf, size_t n) {
         int i = 0;
-        while(i < n){
+        while(i < int(n)){
             if(i1_ > i0_){
                 int cc = i1_ - i0_;
-                if(cc > n - i)
+                if(cc > int(n - i))
                     cc = n - i;
                 bcopy(buf_ + i0_, (char*)xbuf + i, cc);
                 i += cc;
@@ -90,10 +90,10 @@ struct buffered_rpc_ostream : public rpc_ostream_base {
 	n_ = 0;
     }
     bool write(const void *xbuf, size_t xn) {
-        if(n_ + xn > len_)
+        if(n_ + xn > size_t(len_))
             if(flush() == false)
                 return false;
-        assert(n_ + xn <= len_);
+        assert(n_ + xn <= size_t(len_));
         bcopy(xbuf, buf_ + n_, xn);
         n_ += xn;
         return true;
