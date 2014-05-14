@@ -199,7 +199,7 @@ void async_rpcc<T>::handle_error(async_buffered_transport<T> *c, int the_errno) 
 	fprintf(stderr, "error: %d rpcs outstanding (%s)\n",
 		noutstanding_, strerror(the_errno));
     unsigned ncap = waiting_capmask_ + 1;
-    for (int i = 0; i < ncap; ++i) {
+    for (unsigned i = 0; i < ncap; ++i) {
         gcrequest_base* q = waiting_[i];
         if (q) {
 	    --noutstanding_;
