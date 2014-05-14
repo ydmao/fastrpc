@@ -320,7 +320,6 @@ void nbcg::generateXS(const gp::FileDescriptor* file) const {
 bool nbcg::Generate(const gp::FileDescriptor* file, const std::string& parameter,
                     gpc::GeneratorContext*, std::string* error) const {
     dir_ = parameter;
-    std::cerr << "shit " << file->package() << "\n";
     xx_.open(dir_ + "/fastrpc_proto.hh");
     xx_ << "#pragma once\n"
         << "#include <inttypes.h>\n"
