@@ -2,12 +2,12 @@
 
 fastrpc is a RPC library for C++.  It is derived from the
 RPC library of an old version of pequod (https://github.com/bryankate/pequod).
-The initial version was created collaberatively with Eddie Kohler, Bryan Ford,
+The initial version was created collaboratively with Eddie Kohler, Bryan Ford,
 Neha Narula, Robert Morris and Michael Kester.
 
 ## Features ##
-Programmer use Protocol Buffer to specify rpc, services, and messages. fastrpc
-uses its own plugin to generate serialization/deserialization code, stub for
+Programmers use Protocol Buffer to specify rpc, services, and messages. fastrpc
+uses its own plugin to generate serialization/deserialization code, stubs for
 rpc server and rpc clients.
 
 fastrpc supports asynchronous and batching clients/servers. It uses libev to
@@ -23,5 +23,5 @@ fastrpc achieves ~10us latency.
 
 ## Performance and Usage ##
 
-See https://github.com/ydmao/fastrpctest about how to incooperate fastrpc
-into your own project.
+See https://github.com/ydmao/fastrpctest about how to integrate fastrpc
+with your own project.
