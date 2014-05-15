@@ -1,0 +1,14 @@
+FASTRPC = ./fastrpc/obj/libfastrpc.so
+
+$(FASTRPC):
+	if ! test -L ./fastrpc/src/proto; then (ln -s $(PWD)/proto fastrpc/src/proto); fi
+	PROTO=$(PROTOFILE) make -C ./fastrpc
+
+$(DEPOBJS): $(FASTRPC)
+
+clean: clean-fastrpc
+
+clean-fastrpc:
+	make -C fastrpc clean
+
+.PHONY: clean-fastrpc
