@@ -1,5 +1,0 @@
-fastrpc is a single-threaded event-driven RPC library.  It is derived from the
-RPC library of gstore. fastrpc relies on protocol buffer for serialization, and
-libev for events handling.
-
-See am.csail.mit.edu:~/fastrpctest.git about its usage.
