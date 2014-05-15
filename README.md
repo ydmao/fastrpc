@@ -1,6 +1,6 @@
 # fastrpc #
 
-fastrpc is a single-threaded event-driven RPC library.  It is derived from the
+fastrpc is a RPC library for C++.  It is derived from the
 RPC library of an old version of pequod (https://github.com/bryankate/pequod).
 The initial version was created collaberatively with Eddie Kohler, Bryan Ford,
 Neha Narula, Robert Morris and Michael Kester.
