@@ -39,22 +39,22 @@ struct str {
     size_t size() const {
         return len_;
     }
-    bool operator==(const str& x) {
+    bool operator==(const str& x) const {
         return compare(x) == 0;
     }
-    bool operator!=(const str& x) {
+    bool operator!=(const str& x) const {
         return compare(x);
     }
-    bool operator>(const str& x) {
+    bool operator>(const str& x) const {
         return compare(x) > 0;
     }
-    bool operator>=(const str& x) {
+    bool operator>=(const str& x) const {
         return compare(x) >= 0;
     }
-    bool operator<(const str& x) {
+    bool operator<(const str& x) const {
         return compare(x) < 0;
     }
-    bool operator<=(const str& x) {
+    bool operator<=(const str& x) const {
         return compare(x) <= 0;
     }
     int compare(const str& x) const {
