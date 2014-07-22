@@ -214,6 +214,18 @@ struct sync_rpc_transport : public spinlock {
 	this->unlock();
 	return ok;
     }
+    bool recv_header(rpc::rpc_header& h) {
+	if (!connected())
+   	    return false;
+	return rpc::recv_header(conn_->in(), h);
+    }
+    template <typename M>
+    bool recv_body(M& m) {
+	if (!connected())
+	    return false;
+	return rpc::recv_body(conn_->in(), m);
+    }
+   
     template <typename M>
     bool read_reply(rpc::rpc_header& h, M& m) {
 	if (!connected())

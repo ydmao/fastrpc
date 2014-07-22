@@ -29,14 +29,20 @@ inline bool send_request(T* out, int32_t cmd, uint32_t seq, const M& m) {
     return true;
 }
 
+template <typename T>
+inline bool recv_header(T* in, rpc_header& h) {
+    return in->read((char*)&h, sizeof(h));
+}
+
+template <typename T, typename M>
+inline bool recv_body(T* in, M& m) {
+    static_assert(!M::NB, "Synchronous reply can't be non blocking");
+    return m.ParseFromStream(*in);
+}
+
 template <typename T, typename M>
 inline bool read_reply(T* in, M& m, rpc_header& h) {
-    static_assert(!M::NB, "Synchronous reply can't be non blocking");
-    if (!in->read((char*)&h, sizeof(h)))
-        return false;
-    if (!m.ParseFromStream(*in))
-        return false;
-    return true;
+    return recv_header(in, h) && recv_body(in, m);
 }
 
 template <typename OUT, typename IN, typename REQ, typename REPLY>
