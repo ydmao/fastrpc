@@ -356,7 +356,18 @@ struct infb_conn {
 		return -1;
 	    }
 	}
-
+	
+	ssize_t r = 0;
+	while (r < ssize_t(len) && writable(len - r)) {
+	    ssize_t n = non_blocking_write_once((const char*)buf + r, len - r);
+	    if (n < 0)
+		return -1;
+	    r += n;
+        }
+	
+	return r;
+    }
+    ssize_t non_blocking_write_once(const void* buf, size_t len) {
 	if (len <= max_inline_size_) {
 	    if (post_send_with_buffer((const char*)buf, len, IBV_SEND_SIGNALED | IBV_SEND_INLINE) == 0)
 	        return len;
@@ -365,27 +376,22 @@ struct infb_conn {
 		return -1;
 	    }
 	}
-	ssize_t r = 0;
-	while (r < ssize_t(len) && wbuf_.length()) {
-	    size_t n = std::min(len - r, wbuf_.length());
-	    if (wbuf_.data() + n > wbuf_end())
-		n = uintptr_t(wbuf_end() - wbuf_.data());
-	    // XXX: the size of a post message must fit in the 
-	    // recv buffer posted on the other side, which is
-	    // mtub_ currently. 
-	    // XXX and TODO: how to determine such size? performance
-	    // impact?
-	    n = std::min(n, mtub_);
-	    memcpy(wbuf_.s_, (const char*)buf + r, n);
-	    if (post_send_with_buffer(wbuf_.data(), n, IBV_SEND_SIGNALED) != 0) {
-		errno = EIO;
-		return -1;
-	    }
-	    wbuf_consume(n);
-	    r += n;
+        size_t n = std::min(len, wbuf_.length());
+	if (wbuf_.data() + n > wbuf_end())
+	    n = uintptr_t(wbuf_end() - wbuf_.data());
+	// XXX: the size of a post message must fit in the 
+	// recv buffer posted on the other side, which is
+	// mtub_ currently. 
+	// XXX and TODO: how to determine such size? performance
+	// impact?
+	n = std::min(n, mtub_);
+	memcpy(wbuf_.s_, buf, n);
+	if (post_send_with_buffer(wbuf_.data(), n, IBV_SEND_SIGNALED) != 0) {
+	    errno = EIO;
+	    return -1;
 	}
-	
-	return r;
+	wbuf_consume(n);
+	return n;
     }
     
     const infb_sockaddr& local_address() {
@@ -470,7 +476,7 @@ struct infb_conn {
 	return !pending_read_.empty();
     }
     bool writable(size_t len = 0) const {
-	return nw_ < (scq_->cqe/2) && ((len > 0 && len < max_inline_size_) || wbuf_.length());
+	return nw_ < scq_->cqe && ((len > 0 && len < max_inline_size_) || wbuf_.length());
     }
 
   protected:
