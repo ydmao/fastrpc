@@ -101,10 +101,19 @@ struct buffered_rpc_ostream : public rpc_ostream_base {
     bool flush() {
 	if (n_ == 0)
 	    return true;
-        int cc;
-        while((cc = osm_->write(buf_, n_)) == -1 &&
-              (errno == EWOULDBLOCK || errno == EAGAIN))
-            ;
+        int cc = 0;
+        while(cc < n_) {
+	    ssize_t n = osm_->write(buf_ + cc, n_ - cc);
+	    if (n == -1) {
+		if (errno == EWOULDBLOCK || errno == EAGAIN)
+		    continue;
+	        else {
+		    cc = -1;
+		    break;
+	        }
+            }
+	    cc += n;
+        }
         if(cc != n_){
             fprintf(stderr, "buffered_rpc_stream: write failed\n");
             return false;
