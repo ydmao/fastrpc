@@ -106,7 +106,7 @@ struct buffered_rpc_ostream : public rpc_ostream_base {
               (errno == EWOULDBLOCK || errno == EAGAIN))
             ;
         if(cc != n_){
-            fprintf(stderr, "kvout::flush: write failed\n");
+            fprintf(stderr, "buffered_rpc_stream: write failed\n");
             return false;
         }
         n_ = 0;
