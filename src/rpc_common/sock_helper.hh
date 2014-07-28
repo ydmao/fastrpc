@@ -46,7 +46,10 @@ class sock_helper {
 	struct sockaddr_in sin;
         make_sockaddr(h.c_str(), port, sin);
 	r = ::bind(fd, (struct sockaddr *) &sin, sizeof(sin));
-	mandatory_assert(r == 0);
+	if (r != 0) {
+	    fprintf(stderr, "Can't bind to %s:%d\n", h.c_str(), port);
+	    mandatory_assert(0 && "Bind failure");
+	}
 	r = ::listen(fd, backlog ? backlog : 100);
 	mandatory_assert(r == 0);
 	return fd;
